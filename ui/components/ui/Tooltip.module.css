@@ -1,0 +1,31 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  background: var(--ds-surface-3);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
+  z-index: var(--ds-z-tooltip);
+}
+
+.wrapper:hover .tip,
+.wrapper:focus-within .tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

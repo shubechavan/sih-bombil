@@ -1,0 +1,56 @@
+/* ═══ Recharts Theme Overrides ═══ */
+
+.recharts-cartesian-grid line {
+  stroke: var(--ds-border-subtle);
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: var(--ds-text-tertiary);
+  font-family: var(--ds-font-mono);
+  font-size: 0.6875rem;
+}
+
+.recharts-cartesian-axis-line {
+  stroke: var(--ds-border-subtle);
+}
+
+.recharts-tooltip-cursor {
+  stroke: var(--ds-accent);
+  stroke-opacity: 0.2;
+}
+
+.recharts-default-tooltip {
+  background: var(--ds-glass-heavy) !important;
+  border: 1px solid var(--ds-glass-border) !important;
+  border-radius: var(--ds-radius-md) !important;
+  backdrop-filter: blur(16px);
+}
+
+.recharts-tooltip-label {
+  color: var(--ds-text-primary) !important;
+  font-family: var(--ds-font-mono);
+  font-size: 0.75rem;
+}
+
+.recharts-tooltip-item {
+  color: var(--ds-text-secondary) !important;
+  font-family: var(--ds-font-mono);
+  font-size: 0.6875rem;
+}
+
+.recharts-legend-item-text {
+  color: var(--ds-text-secondary) !important;
+  font-family: var(--ds-font-body);
+  font-size: 0.75rem;
+}
+
+.recharts-pie-sector {
+  stroke: var(--ds-surface-0);
+  stroke-width: 2;
+}
+
+/* Reference line for thresholds */
+.recharts-reference-line line {
+  stroke: var(--ds-text-tertiary);
+  stroke-dasharray: 4 4;
+}

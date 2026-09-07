@@ -1,0 +1,111 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.summaryText {
+  font-family: var(--ds-font-mono);
+  font-size: 0.9rem;
+  color: var(--ds-text-primary);
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ds-space-4);
+}
+
+.serviceCard {
+  position: relative;
+  overflow: hidden;
+  padding: var(--ds-space-4);
+  background: var(--ds-surface-0);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  transition: border-color var(--ds-motion-fast);
+}
+
+.serviceCard[data-state="online"] {
+  border-color: var(--ds-severity-low);
+}
+
+.serviceCard[data-state="degraded"] {
+  border-color: var(--ds-severity-medium);
+}
+
+.serviceCard[data-state="offline"] {
+  border-color: var(--ds-severity-critical);
+}
+
+.serviceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.serviceName {
+  font-family: var(--ds-font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+}
+
+.serviceMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.serviceId {
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  color: var(--ds-text-muted);
+}
+
+.serviceLatency {
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  color: var(--ds-text-secondary);
+}
+
+.serviceIndicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+.serviceIndicator[data-state="online"] {
+  background: var(--ds-severity-low);
+}
+
+.serviceIndicator[data-state="degraded"] {
+  background: var(--ds-severity-medium);
+}
+
+.serviceIndicator[data-state="offline"] {
+  background: var(--ds-severity-critical);
+}
+
+.serviceIndicator[data-state="checking"] {
+  background: var(--ds-text-muted);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

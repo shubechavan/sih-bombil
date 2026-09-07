@@ -1,0 +1,115 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: var(--ds-space-5);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+.fieldLabel {
+  font-family: var(--ds-font-sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fieldValue {
+  font-family: var(--ds-font-mono);
+  font-size: 0.85rem;
+  color: var(--ds-text-primary);
+  word-break: break-all;
+}
+
+.content {
+  font-family: var(--ds-font-mono);
+  font-size: 0.8rem;
+  color: var(--ds-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-4);
+}
+
+.analysisSection {
+  margin-top: var(--ds-space-5);
+  padding-top: var(--ds-space-5);
+  border-top: 1px solid var(--ds-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+.sectionTitle {
+  font-family: var(--ds-font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ds-text-primary);
+  margin: 0;
+}
+
+.analysisGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ds-space-4);
+}
+
+.engineResult {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3);
+  background: var(--ds-surface-1);
+  border-radius: var(--ds-radius-md);
+}
+
+.engineName {
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ds-text-muted);
+  text-transform: uppercase;
+}
+
+.explain {
+  padding: var(--ds-space-4);
+  background: var(--ds-surface-1);
+  border-radius: var(--ds-radius-md);
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .analysisGrid {
+    grid-template-columns: 1fr;
+  }
+}

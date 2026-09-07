@@ -1,0 +1,42 @@
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.track {
+  flex: 1;
+  height: 6px;
+  background: var(--ds-surface-2);
+  border-radius: var(--ds-radius-full);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--ds-radius-full);
+  transition: width var(--ds-duration-normal) var(--ds-ease-out);
+}
+
+.fill[data-level="high"] { background: var(--ds-severity-low); }
+.fill[data-level="medium"] { background: var(--ds-severity-medium); }
+.fill[data-level="low"] { background: var(--ds-severity-high); }
+
+.value {
+  font-family: var(--ds-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+.value[data-level="high"] { color: var(--ds-severity-low); }
+.value[data-level="medium"] { color: var(--ds-severity-medium); }
+.value[data-level="low"] { color: var(--ds-severity-high); }
+
+.label {
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  color: var(--ds-text-muted);
+  min-width: 60px;
+}

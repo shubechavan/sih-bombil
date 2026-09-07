@@ -1,0 +1,55 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.gauge {
+  position: relative;
+  width: 160px;
+  height: 90px;
+}
+
+.arc {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.arcBg {
+  stroke: var(--ds-surface-2);
+}
+
+.arcFill {
+  transition: stroke-dashoffset var(--ds-duration-slow) var(--ds-ease-spring);
+}
+
+.arcFill[data-severity="critical"] { stroke: var(--ds-severity-critical); }
+.arcFill[data-severity="high"] { stroke: var(--ds-severity-high); }
+.arcFill[data-severity="medium"] { stroke: var(--ds-severity-medium); }
+.arcFill[data-severity="low"] { stroke: var(--ds-severity-low); }
+
+.scoreLabel {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--ds-font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+}
+
+.riskLabel {
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.riskLabel[data-severity="critical"] { color: var(--ds-severity-critical); }
+.riskLabel[data-severity="high"] { color: var(--ds-severity-high); }
+.riskLabel[data-severity="medium"] { color: var(--ds-severity-medium); }
+.riskLabel[data-severity="low"] { color: var(--ds-severity-low); }

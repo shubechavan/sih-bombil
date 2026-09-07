@@ -1,0 +1,47 @@
+# # --- PyTorch (GPU CUDA 11.8) ---
+# torch==2.7.1
+# torchvision==0.18.1
+# torchaudio==2.7.1
+
+# --- HuggingFace ---
+transformers==4.41.2
+tokenizers==0.19.1
+huggingface_hub==0.23.5
+accelerate==0.30.1
+datasets==2.19.1
+safetensors==0.4.3
+
+# --- GLiNER ---
+gliner==0.1.6
+
+# --- ML ---
+scikit-learn==1.6.1
+pandas==2.2.2
+numpy==1.26.4
+joblib==1.4.2
+
+# --- Scraping ---
+requests==2.32.3
+beautifulsoup4==4.12.3
+stem==1.8.2
+PySocks==1.7.1
+
+
+# --- App ---
+streamlit==1.35.0
+streamlit-autorefresh==1.0.1
+plotly==5.22.0
+
+# --- DB ---
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
+
+
+# --- misc ---
+python-dotenv==1.0.1
+APScheduler==3.10.4
+
+
+
+fastapi==0.115.0
+uvicorn==0.30.6

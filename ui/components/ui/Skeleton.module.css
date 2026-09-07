@@ -1,0 +1,38 @@
+.skeleton {
+  background: var(--ds-surface-1);
+  border-radius: var(--ds-radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  animation: shimmer 1.8s infinite;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(125, 211, 252, 0.12) 50%,
+    transparent 100%
+  );
+}
+
+.text {
+  height: 0.875rem;
+  width: 100%;
+}
+
+.heading {
+  height: 1.5rem;
+  width: 60%;
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+.card {
+  height: 120px;
+  border-radius: var(--ds-radius-lg);
+}

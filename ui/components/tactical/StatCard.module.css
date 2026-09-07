@@ -1,0 +1,89 @@
+.card {
+  background: var(--ds-glass);
+  border: 1px solid var(--ds-glass-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out);
+  cursor: default;
+}
+
+.card[data-clickable="true"] {
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--ds-border-hover);
+}
+
+.card[data-severity="critical"] {
+  border-left: 3px solid var(--ds-severity-critical);
+}
+
+.card[data-severity="high"] {
+  border-left: 3px solid var(--ds-severity-high);
+}
+
+.card[data-severity="medium"] {
+  border-left: 3px solid var(--ds-severity-medium);
+}
+
+.card[data-severity="low"] {
+  border-left: 3px solid var(--ds-severity-low);
+}
+
+.label {
+  font-family: var(--ds-font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.value {
+  font-family: var(--ds-font-mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--ds-text-primary);
+  line-height: 1;
+}
+
+.value[data-severity="critical"] { color: var(--ds-severity-critical); }
+.value[data-severity="high"] { color: var(--ds-severity-high); }
+.value[data-severity="medium"] { color: var(--ds-severity-medium); }
+.value[data-severity="low"] { color: var(--ds-severity-low); }
+
+.delta {
+  font-family: var(--ds-font-mono);
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+}
+
+.delta[data-trend="up"] { color: var(--ds-severity-critical); }
+.delta[data-trend="down"] { color: var(--ds-severity-low); }
+.delta[data-trend="flat"] { color: var(--ds-text-muted); }
+
+.icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ds-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-accent-bg);
+  color: var(--ds-accent);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
