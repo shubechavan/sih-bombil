@@ -200,6 +200,33 @@ in a bio or a post — and it would perturb the stylometry corpus that `tests/te
 already holds to a margin. This note exists so the number is explainable, not so it gets quietly
 patched.
 
+### Two PGP fingerprints where the corpus intends one (Phase 2 artifact)
+
+The same reconciliation gap runs the other way for the four personas that publish an armoured key.
+`scripts/gen_pgp_blocks.py` generates real OpenPGP key blocks whose **actual** fingerprints were
+never folded back into the `IDS` catalogue in `scripts/gen_fixtures.py`, so those personas carry two
+unrelated `pgp_fpr` values: the synthetic catalogue string printed in their prose, and the genuine
+fingerprint of the key block Phase 1 parses.
+
+| personas | catalogue value (prose) | key block fingerprint |
+|---|---|---|
+| 1, 16 | `CE588316E131A327E4F1AB418BEE1D17E2582FE2` | `A4F57ACBFD98FEB663038D0CA51FDFBD1EDC302F` |
+| 3, 18 | `DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9` | `126CA3123A8A913717E3A5AC093F05A37016D0FE` |
+
+Only these four are affected — personas 2, 6, 11 and 20 declare a fingerprint but have no key block,
+so they carry one value each. Both values are correctly extracted and both are genuinely shared
+across the pair, so **there is no scoring impact**: `pgp_fpr` weighs 1.00 and the noisy-OR in
+`score/attribution.py` saturates at 1.00 on either one alone. What it costs is the evidence
+narrative. A link row for 1↔16 reads *"same PGP fingerprint CE5883…"* and *"same PGP fingerprint
+A4F57A…"*, implying two independently corroborating keys, where `notes_on_evidence` says *"1↔16
+share a PGP fingerprint"* — singular.
+
+Not being fixed now, for the same reason as above: reconciling the catalogue with the generated keys
+means regenerating the corpus, and the prose carrying those values feeds the stylometry margin
+`tests/test_fixtures.py` asserts. The Phase 0 fix is to derive `IDS["PGP_A1"]` and `IDS["PGP_A3"]`
+from the key blocks rather than from `pgp_fingerprint(label)`. Recorded so nobody reads a doubled
+evidence list as a second key.
+
 ---
 
 ## 7. Build order (5 phases)
