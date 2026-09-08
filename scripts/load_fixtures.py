@@ -51,7 +51,7 @@ from db import (  # noqa: E402
     session_scope,
     utcnow,
 )
-from obfuslex_engine import leet_decode  # noqa: E402
+from extract.normalize import normalize_handle, normalize_identifier  # noqa: E402
 
 FIXTURES = ROOT / "fixtures"
 SOURCE_DIRS = ("market_alpha", "forum_beta", "market_gamma")
@@ -67,42 +67,10 @@ DATA_TABLES = (
 # ─────────────────────────────────────────────────────────────────────────────
 # Normalisation
 #
-# Phase 1 owns extract/normalize.py. Until it exists the loader needs the same
-# rules, built on the v1 leet_decode so the values do not change when Phase 1
-# takes over: leet_decode already lowercases and strips _ - . which is most of
-# the job (Dr3adPirat3 and Dread_P1rate both become dreadpirate).
+# Phase 1 took ownership of these: they now live in extract/normalize.py, built
+# on the same v1 leet_decode this loader used, so the handle_normalized values
+# already in the database are unchanged.
 # ─────────────────────────────────────────────────────────────────────────────
-
-def normalize_handle(handle: str) -> str:
-    return leet_decode(handle).replace(" ", "")
-
-
-def normalize_identifier(kind: str, value: str) -> str:
-    """Fold an identifier into its comparison form.
-
-    Case matters differently per type. Base58 is case-sensitive, so a Bitcoin
-    legacy address or a Monero address must not be lowercased; an Ethereum
-    address carries its checksum *in* the casing, so the comparison form is the
-    lowercase one; bech32 is canonically lowercase.
-    """
-    value = value.strip()
-    if kind == "pgp_fpr":
-        return value.replace(" ", "").lower()
-    if kind in {"eth", "email", "jabber", "session"}:
-        return value.lower()
-    if kind == "telegram":
-        return value.lstrip("@").lower()
-    if kind == "onion_mirror":
-        host = value.lower()
-        for prefix in ("http://", "https://"):
-            host = host.removeprefix(prefix)
-        return host.split("/")[0]
-    if kind == "btc" and value.lower().startswith("bc1"):
-        return value.lower()
-    if kind == "ltc" and value.lower().startswith("ltc1"):
-        return value.lower()
-    return value  # btc/ltc legacy and xmr are case-sensitive base58
-
 
 def _ts(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None

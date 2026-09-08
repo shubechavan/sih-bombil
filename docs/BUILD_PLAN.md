@@ -161,6 +161,45 @@ Two wins from this:
 Ship both modes: `--source fixtures` and `--source live`. Demo on fixtures, prove live works with one
 real search at the end if Tor is up.
 
+### Known corpus gaps (Phase 0 artifact — read before judging Phase 2)
+
+Phase 1 found this while measuring extraction recall. **8 of the 44 identifiers declared in
+`fixtures/*/personas.json` appear in no bio and in no post.** They are declared with a placeholder
+context (`"declared on the <source> profile of X"`) rather than a prose snippet, so no reader of text
+can derive them — not Phase 1's extractor, and not any replacement for it.
+
+| persona | handle | type | value |
+|---|---|---|---|
+| 3 | Vect0rShop | `onion_mirror` | `x6bdjztamavehh2lehtkyyf2wvht2omaynjh2xawjjhi7ny6hhjuspyd.onion` |
+| 8 | CryoVault | `btc` | `1K1gaku9wLHA1C4JYjQL2z1Nz9HovFbHSE` *(corrupted on purpose)* |
+| 8 | CryoVault | `eth` | `0x4daF2Cc326158a523D9B67fA72Cf616343455679` *(corrupted on purpose)* |
+| 9 | Dread_P1rate | `telegram` | `@dread_fam` |
+| 10 | nordic_pharm | `telegram` | `@nordic_supply` |
+| 17 | NordPharmaEU | `eth` | `0x6e05b5893F34dd1077cae73F8BB39357759FbE4F` |
+| 18 | V3ct0r_Supply | `onion_mirror` | `x6bdjztamavehh2lehtkyyf2wvht2omaynjh2xawjjhi7ny6hhjuspyd.onion` |
+| 19 | SilkHands | `btc` | `bc1q3wk97fe0ce3w6p3xxsumxkj57ylhy7rxyrva5y` |
+
+Two of the eight are the deliberately corrupted wallets, which are supposed to be unusable. **The
+other six are valid identifiers that the corpus simply never puts into words**, and that has a
+consequence Phase 2 must not be blamed for:
+
+- The **H term is thinner than `ground_truth.json` implies** for personas 3, 9, 10, 17, 18 and 19.
+- In particular, `notes_on_evidence` claims *"3↔18 share a PGP fingerprint and a mirror onion"*.
+  Only the fingerprint is reachable. The mirror onion is not evidence any extractor can produce.
+- Pairs 9↔16 and 10↔17 were already designed to share nothing hard, so the missing telegram handles
+  cost nothing there — but 1↔9 and 2↔10 lean harder on the shared jabber/email than the answer key
+  suggests.
+
+Phase 1 reports recall against both denominators for this reason: **36/36 (100%) of the identifiers
+that appear in prose, 36/44 (81.8%) of everything declared.** `scripts/ingest.py --dry-run` and
+`pytest tests/test_identifiers.py` both print the list above, and `tests/test_identifiers.py`
+asserts the set has not changed.
+
+Not being fixed now. The fix is a Phase 0 change — regenerate the corpus so those six values appear
+in a bio or a post — and it would perturb the stylometry corpus that `tests/test_fixtures.py`
+already holds to a margin. This note exists so the number is explainable, not so it gets quietly
+patched.
+
 ---
 
 ## 7. Build order (5 phases)
