@@ -407,9 +407,14 @@ def upsert_posts(session, documents: list[Document], persona_ids: dict[int, int]
 
 def write_identifiers(session, extracted: dict[int, list], documents: list[Document],
                       persona_ids: dict[int, int]) -> tuple[int, int]:
-    """Insert identifiers and their persona links. Returns (identifiers, links)."""
+    """Insert identifiers and their persona_identifiers rows.
+
+    Returns (identifiers, attributions). Nothing here touches the `links` table —
+    that is a persona↔persona edge and Phase 2's resolver owns it. The local name
+    below is `attributions` precisely so the two are never confused in a count.
+    """
     catalogue: dict[tuple[str, str], dict] = {}
-    links: list[dict] = []
+    attributions: list[dict] = []
 
     for index, rows in extracted.items():
         persona = documents[index].persona
@@ -445,7 +450,7 @@ def write_identifiers(session, extracted: dict[int, list], documents: list[Docum
                                   or last_seen > entry["last_seen"]):
                     entry["last_seen"] = last_seen
 
-            links.append({
+            attributions.append({
                 "persona_id": persona_id,
                 "type": kind,
                 "value": value,
@@ -480,7 +485,7 @@ def write_identifiers(session, extracted: dict[int, list], documents: list[Docum
     }
 
     join_rows = {}
-    for link in links:
+    for link in attributions:
         key = (link["persona_id"], ids[(link["type"], link["value"])])
         join_rows[key] = {
             "persona_id": key[0],
