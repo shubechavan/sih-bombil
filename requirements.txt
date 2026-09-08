@@ -19,6 +19,7 @@ scikit-learn==1.6.1
 pandas==2.2.2
 numpy==1.26.4
 joblib==1.4.2
+networkx==3.6.1
 
 # --- Scraping ---
 requests==2.32.3
