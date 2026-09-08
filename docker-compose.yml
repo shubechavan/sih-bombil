@@ -1,0 +1,76 @@
+# docker-compose.yml — Dark Sentinel v2
+#
+# Compose interpolates ${...} from a .env file in this directory, so step one is:
+#   cp .env.example .env
+#
+#   docker compose up -d db
+#   docker compose exec -T db psql -U "$PG_USER" -d "$PG_DB" < schema_v2.sql
+#   python scripts/load_fixtures.py --reset
+#
+# The tor and api services are commented out until Phase 5; their shape is here
+# so the wiring is settled now rather than at 3am.
+
+services:
+  db:
+    image: postgres:16
+    container_name: darksentinel-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-darksentinel}
+      POSTGRES_DB: ${PG_DB:-darksentinel}
+      # Deterministic posting-hour histograms depend on the server not shifting
+      # timestamps; everything we store is UTC (see schema_v2.sql header).
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DB:-darksentinel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Phase 5 ────────────────────────────────────────────────────────────────
+  #
+  # tor:
+  #   image: dperson/torproxy
+  #   container_name: darksentinel-tor
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9050:9050"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -s --socks5-hostname localhost:9050 https://check.torproject.org | grep -q Congratulations"]
+  #     interval: 30s
+  #     timeout: 20s
+  #     retries: 5
+  #     start_period: 60s
+  #
+  # api:
+  #   build: .
+  #   container_name: darksentinel-api
+  #   restart: unless-stopped
+  #   command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+  #   environment:
+  #     PG_HOST: db
+  #     PG_PORT: 5432
+  #     PG_DB: ${PG_DB:-darksentinel}
+  #     PG_USER: ${PG_USER:-postgres}
+  #     PG_PASSWORD: ${PG_PASSWORD:-darksentinel}
+  #     TOR_SOCKS: socks5h://tor:9050
+  #     OPERATOR_ID: ${OPERATOR_ID:-unknown}
+  #     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  #     SHODAN_API_KEY: ${SHODAN_API_KEY:-}
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     tor:
+  #       condition: service_started
+
+volumes:
+  pgdata:

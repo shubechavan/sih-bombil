@@ -1,0 +1,103 @@
+[
+  {
+    "source_id": 1,
+    "onion_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion",
+    "server_banner": "nginx/1.18.0 (Ubuntu)",
+    "powered_by": "PHP/7.4.33",
+    "etag": "W/\"5f2a1c-1b4e\"",
+    "favicon_hash": "-1274392844",
+    "status_exposed": true,
+    "default_page": false,
+    "dir_listing": false,
+    "tls_subject": null,
+    "tls_issuer": null,
+    "tls_serial": null,
+    "tls_sans": null,
+    "tls_not_before": null,
+    "robots_txt": "User-agent: *\nDisallow: /admin\nDisallow: /backup\n",
+    "sitemap_xml": null,
+    "html_comments": [
+      "<!-- build 2024.11 staging -->",
+      "<!-- TODO: remove cdn reference before launch -->"
+    ],
+    "generator_meta": null,
+    "clearnet_refs": [
+      "https://cdn-static-eu.hostvault.net/assets/app.css"
+    ],
+    "headers": {
+      "Server": "nginx/1.18.0 (Ubuntu)",
+      "X-Powered-By": "PHP/7.4.33",
+      "ETag": "W/\"5f2a1c-1b4e\"",
+      "Content-Type": "text/html; charset=UTF-8"
+    },
+    "misconfig_score": 0.72,
+    "scanned_at": "2026-03-18T09:04:11"
+  },
+  {
+    "source_id": 2,
+    "onion_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion",
+    "server_banner": "Apache/2.4.41 (Debian)",
+    "powered_by": null,
+    "etag": "W/\"1a03d2-9f1\"",
+    "favicon_hash": "1893450732",
+    "status_exposed": false,
+    "default_page": false,
+    "dir_listing": true,
+    "tls_subject": null,
+    "tls_issuer": null,
+    "tls_serial": null,
+    "tls_sans": null,
+    "tls_not_before": null,
+    "robots_txt": "User-agent: *\nDisallow:\n",
+    "sitemap_xml": null,
+    "html_comments": [
+      "<!-- powered by a forum script, v3.2 -->"
+    ],
+    "generator_meta": "phpBB 3.2.11",
+    "clearnet_refs": [],
+    "headers": {
+      "Server": "Apache/2.4.41 (Debian)",
+      "ETag": "W/\"1a03d2-9f1\"",
+      "Content-Type": "text/html; charset=UTF-8"
+    },
+    "misconfig_score": 0.41,
+    "scanned_at": "2026-08-22T09:12:40"
+  },
+  {
+    "source_id": 3,
+    "onion_url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion",
+    "server_banner": "nginx/1.18.0 (Ubuntu)",
+    "powered_by": "PHP/7.4.33",
+    "etag": "W/\"7c8b02-2d19\"",
+    "favicon_hash": "-1274392844",
+    "status_exposed": true,
+    "default_page": false,
+    "dir_listing": false,
+    "tls_subject": "CN=gamma-mirror.hostvault.net",
+    "tls_issuer": "C=US, O=Let's Encrypt, CN=R3",
+    "tls_serial": "0F3A9C1D77B54E2A",
+    "tls_sans": [
+      "gamma-mirror.hostvault.net",
+      "www.gamma-mirror.hostvault.net"
+    ],
+    "tls_not_before": "2026-02-14T00:00:00",
+    "robots_txt": "User-agent: *\nDisallow: /admin\nDisallow: /backup\n",
+    "sitemap_xml": "<?xml version=\"1.0\"?><urlset><url><loc>/listings</loc></url></urlset>",
+    "html_comments": [
+      "<!-- build 2024.11 staging -->"
+    ],
+    "generator_meta": null,
+    "clearnet_refs": [
+      "https://cdn-static-eu.hostvault.net/assets/app.css",
+      "https://gamma-mirror.hostvault.net/status"
+    ],
+    "headers": {
+      "Server": "nginx/1.18.0 (Ubuntu)",
+      "X-Powered-By": "PHP/7.4.33",
+      "ETag": "W/\"7c8b02-2d19\"",
+      "Content-Type": "text/html; charset=UTF-8"
+    },
+    "misconfig_score": 0.68,
+    "scanned_at": "2026-08-27T09:07:52"
+  }
+]

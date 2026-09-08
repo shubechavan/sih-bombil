@@ -1,0 +1,271 @@
+[
+  {
+    "id": 1,
+    "key": "market_alpha/Dr3adPirat3",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "Dr3adPirat3",
+    "actor": "actor_001",
+    "category": "drugs",
+    "trust_score": 4.7,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "CE588316E131A327E4F1AB418BEE1D17E2582FE2",
+        "valid": true,
+        "catalogue_key": "PGP_A1",
+        "context": "...his is the main one... my pgp fingerprint is CE588316E131A327E4F1AB418BEE1D17E2582FE2 and it has not changed... real talk, payment..."
+      },
+      {
+        "type": "btc",
+        "value": "bc1q5c8pyjdf4737dwd7tzklxu8tepcc0ytxrj7r3r",
+        "valid": true,
+        "catalogue_key": "BTC_A1_ALPHA",
+        "context": "...has not changed... real talk, payments go to bc1q5c8pyjdf4737dwd7tzklxu8tepcc0ytxrj7r3r and ill never send u a different address in ..."
+      },
+      {
+        "type": "jabber",
+        "value": "dreadpirate@jabber.calyxinstitute.net",
+        "valid": true,
+        "catalogue_key": "JABBER_A1",
+        "context": "... a different address in a msg... reach me at dreadpirate@jabber.calyxinstitute.net, i check it every evening... stay safe out t..."
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/Dr3adPirat3",
+    "bio": "yo fam active on three markets, this is the main one... my pgp fingerprint is CE588316E131A327E4F1AB418BEE1D17E2582FE2 and it has not changed... real talk, payments go to bc1q5c8pyjdf4737dwd7tzklxu8tepcc0ytxrj7r3r and ill never send u a different address in a msg... reach me at dreadpirate@jabber.calyxinstitute.net, i check it every evening... stay safe out there",
+    "first_seen": "2025-09-15T22:35:40",
+    "last_seen": "2026-02-21T03:03:25",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 2,
+    "key": "market_alpha/NordicPharm",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "NordicPharm",
+    "actor": "actor_002",
+    "category": "pharma",
+    "trust_score": 4.9,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "D909C57BCFDD78CAA1C5CD278480E7E0DD24AC73",
+        "valid": true,
+        "catalogue_key": "PGP_A2",
+        "context": "...sages; the solely fingerprint I sign with is D909C57BCFDD78CAA1C5CD278480E7E0DD24AC73, anything else is not me; payments go to 1Pk..."
+      },
+      {
+        "type": "btc",
+        "value": "1PkWTVLPskQTBRrK7FUnRLVGB5u8g4yNzp",
+        "valid": true,
+        "catalogue_key": "BTC_A2",
+        "context": "...C73, anything else is not me; payments go to 1PkWTVLPskQTBRrK7FUnRLVGB5u8g4yNzp and I will never dispatch you a different ad..."
+      },
+      {
+        "type": "email",
+        "value": "nordicpharm.supply@protonmail.com",
+        "valid": true,
+        "catalogue_key": "EMAIL_A2",
+        "context": "...different adress in a message. Message me on nordicpharm.supply@protonmail.com if you need anything before you order. Kind ..."
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/NordicPharm",
+    "bio": "Greetings, small operation, I answer my own messages; the solely fingerprint I sign with is D909C57BCFDD78CAA1C5CD278480E7E0DD24AC73, anything else is not me; payments go to 1PkWTVLPskQTBRrK7FUnRLVGB5u8g4yNzp and I will never dispatch you a different adress in a message. Message me on nordicpharm.supply@protonmail.com if you need anything before you order. Kind regards,",
+    "first_seen": "2025-09-04T06:59:31",
+    "last_seen": "2026-03-03T08:43:29",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 3,
+    "key": "market_alpha/Vect0rShop",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "Vect0rShop",
+    "actor": "actor_003",
+    "category": "data",
+    "trust_score": 4.4,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9",
+        "valid": true,
+        "catalogue_key": "PGP_A3",
+        "context": "... Straight up, verify whatever signed against DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9 before you send funds! Payments go to 0x4D8A..."
+      },
+      {
+        "type": "eth",
+        "value": "0x4D8AC0817b59D528e51F3BA5E743751828792c4d",
+        "valid": true,
+        "catalogue_key": "ETH_A3",
+        "context": "...19F0E9 before you send funds! Payments go to 0x4D8AC0817b59D528e51F3BA5E743751828792c4d and I'll never! 🔥 Send you a different addre..."
+      },
+      {
+        "type": "onion_mirror",
+        "value": "x6bdjztamavehh2lehtkyyf2wvht2omaynjh2xawjjhi7ny6hhjuspyd.onion",
+        "valid": true,
+        "catalogue_key": "MIRROR_A3",
+        "context": "declared on the market_alpha profile of Vect0rShop"
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/Vect0rShop",
+    "bio": "Oi small operation, I answer my own messages! ⚡ Straight up, verify whatever signed against DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9 before you send funds! Payments go to 0x4D8AC0817b59D528e51F3BA5E743751828792c4d and I'll never! 🔥 Send you a different address in a message!!! — V",
+    "first_seen": "2025-09-13T00:39:38",
+    "last_seen": "2026-03-03T17:27:20",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 4,
+    "key": "market_alpha/silk_hands",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "silk_hands",
+    "actor": "actor_004",
+    "category": "docs",
+    "trust_score": 4.6,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "xmr",
+        "value": "45kz1FpMcpgM4ogMKetxJNc3WwXnPMhm9CSRWEUBAmuRR8mWyJGGh9bgpfiAnxR4UiWgAjamnCgfX2qcRcJz4PyNQ9ZFs9C",
+        "valid": true,
+        "catalogue_key": "XMR_A4",
+        "context": "...ery order has shipped, payments head over to 45kz1FpMcpgM4ogMKetxJNc3WwXnPMhm9CSRWEUBAmuRR8mWyJGGh9bgpfiAnxR4UiWgAjamnCgfX2qcRcJz4PyNQ9ZFs9C and I'll not once send you a different addre..."
+      },
+      {
+        "type": "telegram",
+        "value": "@silkhands",
+        "valid": true,
+        "catalogue_key": "TG_A4",
+        "context": "...ifferent address in a message, message me on @silkhands if you need anything before you order. Cheer..."
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/silk_hands",
+    "bio": "Alright mate vendor here since 2023 and every order has shipped, payments head over to 45kz1FpMcpgM4ogMKetxJNc3WwXnPMhm9CSRWEUBAmuRR8mWyJGGh9bgpfiAnxR4UiWgAjamnCgfX2qcRcJz4PyNQ9ZFs9C and I'll not once send you a different address in a message, message me on @silkhands if you need anything before you order. Cheers",
+    "first_seen": "2025-09-01T18:06:00",
+    "last_seen": "2026-03-02T10:51:39",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 5,
+    "key": "market_alpha/QuietCourier",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "QuietCourier",
+    "actor": "actor_005",
+    "category": "drugs",
+    "trust_score": 4.2,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "btc",
+        "value": "bc1q4r2mz7nllzucxryqqtapwxcczx3xwxssl35cux",
+        "valid": true,
+        "catalogue_key": "BTC_P5",
+        "context": "...3 and every order has shipped. My address is bc1q4r2mz7nllzucxryqqtapwxcczx3xwxssl35cux and it has been the same since I opened. Que..."
+      },
+      {
+        "type": "email",
+        "value": "quiet.courier@tutanota.com",
+        "valid": true,
+        "catalogue_key": "EMAIL_P5",
+        "context": "...een the same since I opened. Questions go to quiet.courier@tutanota.com because market messages get lost a lot. Rega..."
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/QuietCourier",
+    "bio": "Hello vendor here since 2023 and every order has shipped. My address is bc1q4r2mz7nllzucxryqqtapwxcczx3xwxssl35cux and it has been the same since I opened. Questions go to quiet.courier@tutanota.com because market messages get lost a lot. Regards",
+    "first_seen": "2025-09-06T08:19:21",
+    "last_seen": "2026-02-02T08:52:06",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 6,
+    "key": "market_alpha/ObsidianLab",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "ObsidianLab",
+    "actor": "actor_006",
+    "category": "pharma",
+    "trust_score": 4.8,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "ECB5FD78E7F16977838345596EC31252FC1421D3",
+        "valid": true,
+        "catalogue_key": "PGP_P6",
+        "context": "... has shipped; verify anything signed against ECB5FD78E7F16977838345596EC31252FC1421D3 before you send funds; payments go to 45DuLV..."
+      },
+      {
+        "type": "xmr",
+        "value": "45DuLVGsVkePvsCDb2M3yeAvzUc6EmWpjKqukqzMwpH78dPAQq5oDKBeCWJpT9sMcWFvbnpZoPjBU3j4ZX6WiBuaGMTknD4",
+        "valid": true,
+        "catalogue_key": "XMR_P6",
+        "context": "...1421D3 before you send funds; payments go to 45DuLVGsVkePvsCDb2M3yeAvzUc6EmWpjKqukqzMwpH78dPAQq5oDKBeCWJpT9sMcWFvbnpZoPjBU3j4ZX6WiBuaGMTknD4 and i'll never send you a different address ..."
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/ObsidianLab",
+    "bio": "lab notice vendor here since 2023 and every order has shipped; verify anything signed against ECB5FD78E7F16977838345596EC31252FC1421D3 before you send funds; payments go to 45DuLVGsVkePvsCDb2M3yeAvzUc6EmWpjKqukqzMwpH78dPAQq5oDKBeCWJpT9sMcWFvbnpZoPjBU3j4ZX6WiBuaGMTknD4 and i'll never send you a different address in a message. obsidian",
+    "first_seen": "2025-09-08T22:02:11",
+    "last_seen": "2026-01-31T07:24:54",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 7,
+    "key": "market_alpha/paperghost",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "paperghost",
+    "actor": "actor_007",
+    "category": "docs",
+    "trust_score": 3.1,
+    "post_count": 2,
+    "identifiers": [],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/paperghost",
+    "bio": "no listings yet",
+    "first_seen": "2025-09-09T19:58:46",
+    "last_seen": "2025-10-09T11:57:29",
+    "last_scan_at": "2026-03-18T09:00:00"
+  },
+  {
+    "id": 8,
+    "key": "market_alpha/CryoVault",
+    "source": "market_alpha",
+    "source_id": 1,
+    "handle": "CryoVault",
+    "actor": "actor_008",
+    "category": "pharma",
+    "trust_score": 4.0,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "email",
+        "value": "cryovault@protonmail.com",
+        "valid": true,
+        "catalogue_key": "EMAIL_P8",
+        "context": "...markets, this is the main one!!! Reach me at cryovault@protonmail.com, I check it every evening! ❄ Vault out"
+      },
+      {
+        "type": "btc",
+        "value": "1K1gaku9wLHA1C4JYjQL2z1Nz9HovFbHSE",
+        "valid": false,
+        "catalogue_key": "BAD_BTC_P8",
+        "context": "declared on the market_alpha profile of CryoVault"
+      },
+      {
+        "type": "eth",
+        "value": "0x4daF2Cc326158a523D9B67fA72Cf616343455679",
+        "valid": false,
+        "catalogue_key": "BAD_ETH_P8",
+        "context": "declared on the market_alpha profile of CryoVault"
+      }
+    ],
+    "profile_url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion/vendor/CryoVault",
+    "bio": "Cryo here heads up, active on three markets, this is the main one!!! Reach me at cryovault@protonmail.com, I check it every evening! ❄ Vault out",
+    "first_seen": "2025-09-07T11:42:37",
+    "last_seen": "2026-02-28T14:42:12",
+    "last_scan_at": "2026-03-18T09:00:00"
+  }
+]

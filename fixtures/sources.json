@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "name": "market_alpha",
+    "url": "http://7i5rgrutibeuicqoyved7evdkadd5ybtrdjrxcybpvprms2lio2pofyd.onion",
+    "kind": "market",
+    "is_onion": true,
+    "reliability": 0.72,
+    "first_seen": "2025-08-20T00:00:00",
+    "last_scan_at": "2026-03-18T09:00:00",
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "forum_beta",
+    "url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion",
+    "kind": "forum",
+    "is_onion": true,
+    "reliability": 0.61,
+    "first_seen": "2025-09-14T00:00:00",
+    "last_scan_at": "2026-08-22T09:00:00",
+    "active": true
+  },
+  {
+    "id": 3,
+    "name": "market_gamma",
+    "url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion",
+    "kind": "market",
+    "is_onion": true,
+    "reliability": 0.68,
+    "first_seen": "2026-02-25T00:00:00",
+    "last_scan_at": "2026-08-27T09:00:00",
+    "active": true
+  }
+]

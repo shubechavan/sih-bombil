@@ -1,0 +1,183 @@
+[
+  {
+    "id": 16,
+    "key": "market_gamma/BlackSailsRX",
+    "source": "market_gamma",
+    "source_id": 3,
+    "handle": "BlackSailsRX",
+    "actor": "actor_001",
+    "category": "drugs",
+    "trust_score": 4.5,
+    "post_count": 11,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "CE588316E131A327E4F1AB418BEE1D17E2582FE2",
+        "valid": true,
+        "catalogue_key": "PGP_A1",
+        "context": "...in one... new key posted, the fingerprint is CE588316E131A327E4F1AB418BEE1D17E2582FE2... the wallet for direct payment is bc1qpnqh..."
+      },
+      {
+        "type": "btc",
+        "value": "bc1qpnqhqpqu9fmyjavryl5vry8javn95chmnnezpt",
+        "valid": true,
+        "catalogue_key": "BTC_A1_GAMMA",
+        "context": "...E2582FE2... the wallet for direct payment is bc1qpnqhqpqu9fmyjavryl5vry8javn95chmnnezpt, always confirm it against a signed msg... l..."
+      },
+      {
+        "type": "session",
+        "value": "05046b8b531ef04019c37a2e7ee39bad0b876d85ccad6346168d7392cf48911c52",
+        "valid": true,
+        "catalogue_key": "SESSION_A1",
+        "context": "...it against a signed msg... listen, msg me on 05046b8b531ef04019c37a2e7ee39bad0b876d85ccad6346168d7392cf48911c52 if u need anything b4 u order... stay safe o..."
+      }
+    ],
+    "profile_url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion/vendor/BlackSailsRX",
+    "bio": "yo fam active on three markets, this is the main one... new key posted, the fingerprint is CE588316E131A327E4F1AB418BEE1D17E2582FE2... the wallet for direct payment is bc1qpnqhqpqu9fmyjavryl5vry8javn95chmnnezpt, always confirm it against a signed msg... listen, msg me on 05046b8b531ef04019c37a2e7ee39bad0b876d85ccad6346168d7392cf48911c52 if u need anything b4 u order... stay safe out there",
+    "first_seen": "2026-04-05T22:56:43",
+    "last_seen": "2026-08-11T22:05:29",
+    "last_scan_at": "2026-08-27T09:00:00"
+  },
+  {
+    "id": 17,
+    "key": "market_gamma/NordPharmaEU",
+    "source": "market_gamma",
+    "source_id": 3,
+    "handle": "NordPharmaEU",
+    "actor": "actor_002",
+    "category": "pharma",
+    "trust_score": 4.8,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "btc",
+        "value": "1PkWTVLPskQTBRrK7FUnRLVGB5u8g4yNzp",
+        "valid": true,
+        "catalogue_key": "BTC_A2",
+        "context": "...e main one; the wallet for direct payment is 1PkWTVLPskQTBRrK7FUnRLVGB5u8g4yNzp, always confirm it against a signed message...."
+      },
+      {
+        "type": "eth",
+        "value": "0x6e05b5893F34dd1077cae73F8BB39357759FbE4F",
+        "valid": true,
+        "catalogue_key": "ETH_A2",
+        "context": "declared on the market_gamma profile of NordPharmaEU"
+      }
+    ],
+    "profile_url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion/vendor/NordPharmaEU",
+    "bio": "Greetings, For clarity, active on three markets, this is the main one; the wallet for direct payment is 1PkWTVLPskQTBRrK7FUnRLVGB5u8g4yNzp, always confirm it against a signed message. Kind regards,",
+    "first_seen": "2026-03-08T04:02:40",
+    "last_seen": "2026-08-20T07:00:53",
+    "last_scan_at": "2026-08-27T09:00:00"
+  },
+  {
+    "id": 18,
+    "key": "market_gamma/V3ct0r_Supply",
+    "source": "market_gamma",
+    "source_id": 3,
+    "handle": "V3ct0r_Supply",
+    "actor": "actor_003",
+    "category": "data",
+    "trust_score": 4.3,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9",
+        "valid": true,
+        "catalogue_key": "PGP_A3",
+        "context": "...ry drop has shipped! 🔥 My pgp fingerprint is DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9 and it has not changed! STRAIGHT up, my addr..."
+      },
+      {
+        "type": "ltc",
+        "value": "LaKAxeY9fx7oTJ6B4xuVee47GEwZVrrvVr",
+        "valid": true,
+        "catalogue_key": "LTC_A3",
+        "context": "... has not changed! STRAIGHT up, my address is LaKAxeY9fx7oTJ6B4xuVee47GEwZVrrvVr and it!!! ⚡ Straight up, has been the same s..."
+      },
+      {
+        "type": "onion_mirror",
+        "value": "x6bdjztamavehh2lehtkyyf2wvht2omaynjh2xawjjhi7ny6hhjuspyd.onion",
+        "valid": true,
+        "catalogue_key": "MIRROR_A3",
+        "context": "declared on the market_gamma profile of V3ct0r_Supply"
+      }
+    ],
+    "profile_url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion/vendor/V3ct0r_Supply",
+    "bio": "Oi vendor here since 2023 and every drop has shipped! 🔥 My pgp fingerprint is DD0FDE735ED7CBAA5E68B9D41C7FD3AB2319F0E9 and it has not changed! STRAIGHT up, my address is LaKAxeY9fx7oTJ6B4xuVee47GEwZVrrvVr and it!!! ⚡ Straight up, has been the same since I opened! 🔥 — V",
+    "first_seen": "2026-03-05T17:09:59",
+    "last_seen": "2026-07-09T15:09:31",
+    "last_scan_at": "2026-08-27T09:00:00"
+  },
+  {
+    "id": 19,
+    "key": "market_gamma/SilkHands",
+    "source": "market_gamma",
+    "source_id": 3,
+    "handle": "SilkHands",
+    "actor": "actor_004",
+    "category": "docs",
+    "trust_score": 4.6,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "xmr",
+        "value": "45kz1FpMcpgM4ogMKetxJNc3WwXnPMhm9CSRWEUBAmuRR8mWyJGGh9bgpfiAnxR4UiWgAjamnCgfX2qcRcJz4PyNQ9ZFs9C",
+        "valid": true,
+        "catalogue_key": "XMR_A4",
+        "context": "...nswer me own messages, payments head over to 45kz1FpMcpgM4ogMKetxJNc3WwXnPMhm9CSRWEUBAmuRR8mWyJGGh9bgpfiAnxR4UiWgAjamnCgfX2qcRcJz4PyNQ9ZFs9C and I'll not once send you a different addre..."
+      },
+      {
+        "type": "btc",
+        "value": "bc1q3wk97fe0ce3w6p3xxsumxkj57ylhy7rxyrva5y",
+        "valid": true,
+        "catalogue_key": "BTC_A4_GAMMA",
+        "context": "declared on the market_gamma profile of SilkHands"
+      }
+    ],
+    "profile_url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion/vendor/SilkHands",
+    "bio": "Alright mate to be honest, small operation, I answer me own messages, payments head over to 45kz1FpMcpgM4ogMKetxJNc3WwXnPMhm9CSRWEUBAmuRR8mWyJGGh9bgpfiAnxR4UiWgAjamnCgfX2qcRcJz4PyNQ9ZFs9C and I'll not once send you a different address in a message. Cheers",
+    "first_seen": "2026-03-15T18:42:59",
+    "last_seen": "2026-08-22T20:14:03",
+    "last_scan_at": "2026-08-27T09:00:00"
+  },
+  {
+    "id": 20,
+    "key": "market_gamma/AtlasMeds",
+    "source": "market_gamma",
+    "source_id": 3,
+    "handle": "AtlasMeds",
+    "actor": "actor_009",
+    "category": "pharma",
+    "trust_score": 4.1,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "7B7F1DBD4CEAEA1C4168112980DE647A7AF51736",
+        "valid": true,
+        "catalogue_key": "PGP_P20",
+        "context": "...wn messages — verify anything signed against 7B7F1DBD4CEAEA1C4168112980DE647A7AF51736 before you send funds — payments go to 1EM3f..."
+      },
+      {
+        "type": "btc",
+        "value": "1EM3f99zh8RVYDY6G5dr42RVDuZgjwmJqc",
+        "valid": true,
+        "catalogue_key": "BTC_P20",
+        "context": "...51736 before you send funds — payments go to 1EM3f99zh8RVYDY6G5dr42RVDuZgjwmJqc and I'll never send you a different address ..."
+      },
+      {
+        "type": "email",
+        "value": "atlas.meds@protonmail.com",
+        "valid": true,
+        "catalogue_key": "EMAIL_P20",
+        "context": "...s in a message. Kindly note, questions go to atlas.meds@protonmail.com because market messages get lost a lot. Best..."
+      }
+    ],
+    "profile_url": "http://odqwdplj5e3gdip5hu7mr4u4hetnej6uuz476tq7cm3ir4r3s2r72fyd.onion/vendor/AtlasMeds",
+    "bio": "Greetings, In addition, small operation, I answer my own messages — verify anything signed against 7B7F1DBD4CEAEA1C4168112980DE647A7AF51736 before you send funds — payments go to 1EM3f99zh8RVYDY6G5dr42RVDuZgjwmJqc and I'll never send you a different address in a message. Kindly note, questions go to atlas.meds@protonmail.com because market messages get lost a lot. Best wishes,",
+    "first_seen": "2026-04-08T15:46:48",
+    "last_seen": "2026-08-16T15:10:24",
+    "last_scan_at": "2026-08-27T09:00:00"
+  }
+]

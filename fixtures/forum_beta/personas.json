@@ -1,0 +1,219 @@
+[
+  {
+    "id": 9,
+    "key": "forum_beta/Dread_P1rate",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "Dread_P1rate",
+    "actor": "actor_001",
+    "category": "drugs",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "jabber",
+        "value": "dreadpirate@jabber.calyxinstitute.net",
+        "valid": true,
+        "catalogue_key": "JABBER_A1",
+        "context": "...and every order has shipped... my contact is dreadpirate@jabber.calyxinstitute.net and i usually answer within the hour... stay..."
+      },
+      {
+        "type": "telegram",
+        "value": "@dread_fam",
+        "valid": true,
+        "catalogue_key": "TG_A1",
+        "context": "declared on the forum_beta profile of Dread_P1rate"
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/Dread_P1rate",
+    "bio": "yo fam look, vendor here since 2023 and every order has shipped... my contact is dreadpirate@jabber.calyxinstitute.net and i usually answer within the hour... stay safe out there",
+    "first_seen": "2025-10-01T22:21:01",
+    "last_seen": "2026-07-22T23:50:25",
+    "last_scan_at": "2026-08-22T09:00:00"
+  },
+  {
+    "id": 10,
+    "key": "forum_beta/nordic_pharm",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "nordic_pharm",
+    "actor": "actor_002",
+    "category": "pharma",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "email",
+        "value": "nordicpharm.supply@protonmail.com",
+        "valid": true,
+        "catalogue_key": "EMAIL_A2",
+        "context": "...markets, this is the main one; my contact is nordicpharm.supply@protonmail.com and I usually answer within the hour. Kind r..."
+      },
+      {
+        "type": "telegram",
+        "value": "@nordic_supply",
+        "valid": true,
+        "catalogue_key": "TG_A2",
+        "context": "declared on the forum_beta profile of nordic_pharm"
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/nordic_pharm",
+    "bio": "Greetings, active on three markets, this is the main one; my contact is nordicpharm.supply@protonmail.com and I usually answer within the hour. Kind regards,",
+    "first_seen": "2025-10-09T06:48:05",
+    "last_seen": "2026-07-23T10:53:24",
+    "last_scan_at": "2026-08-22T09:00:00"
+  },
+  {
+    "id": 11,
+    "key": "forum_beta/hexweaver",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "hexweaver",
+    "actor": "actor_010",
+    "category": "hacking",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "pgp_fpr",
+        "value": "41EEFEE998E7AB8F05D0DF8B532B204038521B46",
+        "valid": true,
+        "catalogue_key": "PGP_P11",
+        "context": "... this is the main one. My pgp fingerprint is 41EEFEE998E7AB8F05D0DF8B532B204038521B46 and it has not changed. Reach me at 050b75c0..."
+      },
+      {
+        "type": "session",
+        "value": "050b75c0a5f0ebcb85b03d03b86eb5c33a8f745893622912cef586489150e4b8b4",
+        "valid": true,
+        "catalogue_key": "SESSION_P11",
+        "context": "...38521B46 and it has not changed. Reach me at 050b75c0a5f0ebcb85b03d03b86eb5c33a8f745893622912cef586489150e4b8b4, I check it every evening. Hx"
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/hexweaver",
+    "bio": "Salute active upon three markets, this is the main one. My pgp fingerprint is 41EEFEE998E7AB8F05D0DF8B532B204038521B46 and it has not changed. Reach me at 050b75c0a5f0ebcb85b03d03b86eb5c33a8f745893622912cef586489150e4b8b4, I check it every evening. Hx",
+    "first_seen": "2025-10-03T22:24:40",
+    "last_seen": "2026-07-03T22:14:22",
+    "last_scan_at": "2026-08-22T09:00:00"
+  },
+  {
+    "id": 12,
+    "key": "forum_beta/mtl_broker",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "mtl_broker",
+    "actor": "actor_011",
+    "category": "laundering",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "btc",
+        "value": "1Mqzt9d3DXoopBkctjwxLwMLLuwwxjxjWm",
+        "valid": true,
+        "catalogue_key": "BTC_P12",
+        "context": "...2022, mostly repeat customers; my address is 1Mqzt9d3DXoopBkctjwxLwMLLuwwxjxjWm and it holds been the same since I opened; m..."
+      },
+      {
+        "type": "email",
+        "value": "mtl.broker@mail2tor.com",
+        "valid": true,
+        "catalogue_key": "EMAIL_P12",
+        "context": "... been the same since I opened; my contact is mtl.broker@mail2tor.com and I usually answer within the hour. MTL"
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/mtl_broker",
+    "bio": "Good day trading since 2022, mostly repeat customers; my address is 1Mqzt9d3DXoopBkctjwxLwMLLuwwxjxjWm and it holds been the same since I opened; my contact is mtl.broker@mail2tor.com and I usually answer within the hour. MTL",
+    "first_seen": "2025-10-07T12:34:02",
+    "last_seen": "2026-07-16T13:22:17",
+    "last_scan_at": "2026-08-22T09:00:00"
+  },
+  {
+    "id": 13,
+    "key": "forum_beta/zeroCool99",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "zeroCool99",
+    "actor": "actor_012",
+    "category": "hacking",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "telegram",
+        "value": "@zerocool99",
+        "valid": true,
+        "catalogue_key": "TG_P13",
+        "context": "... been the same since i opened!!! reach me at @zerocool99, i check it every evening!!! zc"
+      },
+      {
+        "type": "eth",
+        "value": "0xeDfff09e7A42D6139E323f865ae8fC75a063be98",
+        "valid": true,
+        "catalogue_key": "ETH_P13",
+        "context": "...ion, i answer my own messages! my address is 0xeDfff09e7A42D6139E323f865ae8fC75a063be98 and it has been the same since i opened!!! r..."
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/zeroCool99",
+    "bio": "sup small operation, i answer my own messages! my address is 0xeDfff09e7A42D6139E323f865ae8fC75a063be98 and it has been the same since i opened!!! reach me at @zerocool99, i check it every evening!!! zc",
+    "first_seen": "2025-11-10T03:37:31",
+    "last_seen": "2026-07-03T04:39:56",
+    "last_scan_at": "2026-08-22T09:00:00"
+  },
+  {
+    "id": 14,
+    "key": "forum_beta/graypigeon",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "graypigeon",
+    "actor": "actor_013",
+    "category": "drugs",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "jabber",
+        "value": "graypigeon@xmpp.jp",
+        "valid": true,
+        "catalogue_key": "JABBER_P14",
+        "context": "... the main one. In my experiance, reach me at graypigeon@xmpp.jp, I check it every evening. Gp"
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/graypigeon",
+    "bio": "Morning all active on three markets, this is the main one. In my experiance, reach me at graypigeon@xmpp.jp, I check it every evening. Gp",
+    "first_seen": "2025-11-05T09:35:08",
+    "last_seen": "2026-08-06T10:13:34",
+    "last_scan_at": "2026-08-22T09:00:00"
+  },
+  {
+    "id": 15,
+    "key": "forum_beta/plainbagel",
+    "source": "forum_beta",
+    "source_id": 2,
+    "handle": "plainbagel",
+    "actor": "actor_014",
+    "category": "docs",
+    "trust_score": null,
+    "post_count": 10,
+    "identifiers": [
+      {
+        "type": "btc",
+        "value": "bc1qhy67fnhkl8x6d06v7vrhkr44kh07wzd0xuf5a7",
+        "valid": true,
+        "catalogue_key": "BTC_P15",
+        "context": "...e main one, the wallet for direct payment is bc1qhy67fnhkl8x6d06v7vrhkr44kh07wzd0xuf5a7, always confirm it against a signed message,..."
+      },
+      {
+        "type": "telegram",
+        "value": "@plain_bagel",
+        "valid": true,
+        "catalogue_key": "TG_P15",
+        "context": "...m it against a signed message, my contact is @plain_bagel and I usually answer within the hour. Later"
+      }
+    ],
+    "profile_url": "http://awiplo4np7ezfbhffufxdnjdpcfuue2mqfiplcneld5jfsamgi3fmoad.onion/user/plainbagel",
+    "bio": "Hey all active on three markets, this is the main one, the wallet for direct payment is bc1qhy67fnhkl8x6d06v7vrhkr44kh07wzd0xuf5a7, always confirm it against a signed message, my contact is @plain_bagel and I usually answer within the hour. Later",
+    "first_seen": "2025-11-03T08:36:04",
+    "last_seen": "2026-08-16T06:10:46",
+    "last_scan_at": "2026-08-22T09:00:00"
+  }
+]

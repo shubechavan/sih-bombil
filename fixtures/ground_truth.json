@@ -1,0 +1,377 @@
+{
+  "note": "Answer key for scripts/evaluate.py. Never loaded into the database — personas.actor_id stays NULL after load_fixtures so the resolver has to derive these clusters itself.",
+  "generated_by": "scripts/gen_fixtures.py",
+  "seed": 1337,
+  "actor_count": 14,
+  "persona_count": 20,
+  "actors": {
+    "actor_001": {
+      "label": "Dread (market_alpha → market_gamma)",
+      "personas": [
+        1,
+        9,
+        16
+      ],
+      "sources": [
+        "forum_beta",
+        "market_alpha",
+        "market_gamma"
+      ],
+      "migration": "market_alpha -> market_gamma"
+    },
+    "actor_002": {
+      "label": "Nordic (market_alpha → market_gamma)",
+      "personas": [
+        2,
+        10,
+        17
+      ],
+      "sources": [
+        "forum_beta",
+        "market_alpha",
+        "market_gamma"
+      ],
+      "migration": "market_alpha -> market_gamma"
+    },
+    "actor_003": {
+      "label": "Vector (market_alpha → market_gamma)",
+      "personas": [
+        3,
+        18
+      ],
+      "sources": [
+        "market_alpha",
+        "market_gamma"
+      ],
+      "migration": "market_alpha -> market_gamma"
+    },
+    "actor_004": {
+      "label": "Silk (market_alpha → market_gamma)",
+      "personas": [
+        4,
+        19
+      ],
+      "sources": [
+        "market_alpha",
+        "market_gamma"
+      ],
+      "migration": "market_alpha -> market_gamma"
+    },
+    "actor_005": {
+      "label": "QuietCourier",
+      "personas": [
+        5
+      ],
+      "sources": [
+        "market_alpha"
+      ],
+      "migration": null
+    },
+    "actor_006": {
+      "label": "ObsidianLab",
+      "personas": [
+        6
+      ],
+      "sources": [
+        "market_alpha"
+      ],
+      "migration": null
+    },
+    "actor_007": {
+      "label": "paperghost",
+      "personas": [
+        7
+      ],
+      "sources": [
+        "market_alpha"
+      ],
+      "migration": null
+    },
+    "actor_008": {
+      "label": "CryoVault",
+      "personas": [
+        8
+      ],
+      "sources": [
+        "market_alpha"
+      ],
+      "migration": null
+    },
+    "actor_009": {
+      "label": "AtlasMeds",
+      "personas": [
+        20
+      ],
+      "sources": [
+        "market_gamma"
+      ],
+      "migration": null
+    },
+    "actor_010": {
+      "label": "hexweaver",
+      "personas": [
+        11
+      ],
+      "sources": [
+        "forum_beta"
+      ],
+      "migration": null
+    },
+    "actor_011": {
+      "label": "mtl_broker",
+      "personas": [
+        12
+      ],
+      "sources": [
+        "forum_beta"
+      ],
+      "migration": null
+    },
+    "actor_012": {
+      "label": "zeroCool99",
+      "personas": [
+        13
+      ],
+      "sources": [
+        "forum_beta"
+      ],
+      "migration": null
+    },
+    "actor_013": {
+      "label": "graypigeon",
+      "personas": [
+        14
+      ],
+      "sources": [
+        "forum_beta"
+      ],
+      "migration": null
+    },
+    "actor_014": {
+      "label": "plainbagel",
+      "personas": [
+        15
+      ],
+      "sources": [
+        "forum_beta"
+      ],
+      "migration": null
+    }
+  },
+  "persona_to_actor": {
+    "1": "actor_001",
+    "2": "actor_002",
+    "3": "actor_003",
+    "4": "actor_004",
+    "5": "actor_005",
+    "6": "actor_006",
+    "7": "actor_007",
+    "8": "actor_008",
+    "9": "actor_001",
+    "10": "actor_002",
+    "11": "actor_010",
+    "12": "actor_011",
+    "13": "actor_012",
+    "14": "actor_013",
+    "15": "actor_014",
+    "16": "actor_001",
+    "17": "actor_002",
+    "18": "actor_003",
+    "19": "actor_004",
+    "20": "actor_009"
+  },
+  "personas": {
+    "1": {
+      "key": "market_alpha/Dr3adPirat3",
+      "source": "market_alpha",
+      "handle": "Dr3adPirat3",
+      "handle_normalized": "dreadpirate"
+    },
+    "2": {
+      "key": "market_alpha/NordicPharm",
+      "source": "market_alpha",
+      "handle": "NordicPharm",
+      "handle_normalized": "nordicpharm"
+    },
+    "3": {
+      "key": "market_alpha/Vect0rShop",
+      "source": "market_alpha",
+      "handle": "Vect0rShop",
+      "handle_normalized": "vectorshop"
+    },
+    "4": {
+      "key": "market_alpha/silk_hands",
+      "source": "market_alpha",
+      "handle": "silk_hands",
+      "handle_normalized": "silkhands"
+    },
+    "5": {
+      "key": "market_alpha/QuietCourier",
+      "source": "market_alpha",
+      "handle": "QuietCourier",
+      "handle_normalized": "quietcourier"
+    },
+    "6": {
+      "key": "market_alpha/ObsidianLab",
+      "source": "market_alpha",
+      "handle": "ObsidianLab",
+      "handle_normalized": "obsidianlab"
+    },
+    "7": {
+      "key": "market_alpha/paperghost",
+      "source": "market_alpha",
+      "handle": "paperghost",
+      "handle_normalized": "paperghost"
+    },
+    "8": {
+      "key": "market_alpha/CryoVault",
+      "source": "market_alpha",
+      "handle": "CryoVault",
+      "handle_normalized": "cryovault"
+    },
+    "9": {
+      "key": "forum_beta/Dread_P1rate",
+      "source": "forum_beta",
+      "handle": "Dread_P1rate",
+      "handle_normalized": "dreadpirate"
+    },
+    "10": {
+      "key": "forum_beta/nordic_pharm",
+      "source": "forum_beta",
+      "handle": "nordic_pharm",
+      "handle_normalized": "nordicpharm"
+    },
+    "11": {
+      "key": "forum_beta/hexweaver",
+      "source": "forum_beta",
+      "handle": "hexweaver",
+      "handle_normalized": "hexweaver"
+    },
+    "12": {
+      "key": "forum_beta/mtl_broker",
+      "source": "forum_beta",
+      "handle": "mtl_broker",
+      "handle_normalized": "mtlbroker"
+    },
+    "13": {
+      "key": "forum_beta/zeroCool99",
+      "source": "forum_beta",
+      "handle": "zeroCool99",
+      "handle_normalized": "zerocool99"
+    },
+    "14": {
+      "key": "forum_beta/graypigeon",
+      "source": "forum_beta",
+      "handle": "graypigeon",
+      "handle_normalized": "graypigeon"
+    },
+    "15": {
+      "key": "forum_beta/plainbagel",
+      "source": "forum_beta",
+      "handle": "plainbagel",
+      "handle_normalized": "plainbagel"
+    },
+    "16": {
+      "key": "market_gamma/BlackSailsRX",
+      "source": "market_gamma",
+      "handle": "BlackSailsRX",
+      "handle_normalized": "blacksailsrx"
+    },
+    "17": {
+      "key": "market_gamma/NordPharmaEU",
+      "source": "market_gamma",
+      "handle": "NordPharmaEU",
+      "handle_normalized": "nordpharmaeu"
+    },
+    "18": {
+      "key": "market_gamma/V3ct0r_Supply",
+      "source": "market_gamma",
+      "handle": "V3ct0r_Supply",
+      "handle_normalized": "vectorsupply"
+    },
+    "19": {
+      "key": "market_gamma/SilkHands",
+      "source": "market_gamma",
+      "handle": "SilkHands",
+      "handle_normalized": "silkhands"
+    },
+    "20": {
+      "key": "market_gamma/AtlasMeds",
+      "source": "market_gamma",
+      "handle": "AtlasMeds",
+      "handle_normalized": "atlasmeds"
+    }
+  },
+  "expected_positive_pairs": [
+    [
+      1,
+      9
+    ],
+    [
+      1,
+      16
+    ],
+    [
+      2,
+      10
+    ],
+    [
+      2,
+      17
+    ],
+    [
+      3,
+      18
+    ],
+    [
+      4,
+      19
+    ],
+    [
+      9,
+      16
+    ],
+    [
+      10,
+      17
+    ]
+  ],
+  "hard_negatives": [
+    {
+      "pair": [
+        4,
+        15
+      ],
+      "reason": "silk_hands and plainbagel share a sentence-length band and two discourse markers but no identifier, no misspellings and no posting hours. Stylometry should rate them highly; the full formula must not confirm.",
+      "max_band": "POSSIBLE"
+    },
+    {
+      "pair": [
+        2,
+        20
+      ],
+      "reason": "NordicPharm and AtlasMeds share a formal register, a greeting and a category. AtlasMeds is a genuinely new vendor: different contractions, punctuation, misspellings and posting hours.",
+      "max_band": "POSSIBLE"
+    }
+  ],
+  "refusal_cases": [
+    {
+      "persona_id": 7,
+      "reason": "paperghost has under 300 characters of text in total, so stylometry must return None rather than a score."
+    },
+    {
+      "persona_id": 8,
+      "reason": "CryoVault publishes a BTC address with a broken base58check checksum and an ETH address with a broken EIP-55 checksum. Both must be dropped, not stored.",
+      "dropped_values": [
+        "0x4daF2Cc326158a523D9B67fA72Cf616343455679",
+        "1K1gaku9wLHA1C4JYjQL2z1Nz9HovFbHSE"
+      ]
+    }
+  ],
+  "notes_on_evidence": {
+    "actor_001": "1<->16 share a PGP fingerprint; 1<->9 share a jabber id and a normalised handle; 9<->16 share nothing hard and must be resolved through the cluster.",
+    "actor_002": "2<->17 share a BTC wallet; 2<->10 share an email and a normalised handle; 10<->17 share nothing hard.",
+    "actor_003": "3<->18 share a PGP fingerprint and a mirror onion.",
+    "actor_004": "4<->19 share an XMR wallet and a normalised handle."
+  }
+}
