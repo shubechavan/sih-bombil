@@ -495,6 +495,9 @@ class InfraFinding(Base):
     generator_meta: Mapped[Optional[str]] = mapped_column(Text)
     clearnet_refs: Mapped[Optional[list]] = mapped_column(JSONB)
     headers: Mapped[Optional[dict]] = mapped_column(JSONB)
+    #: Header names in the order the server sent them. Stored separately because
+    #: JSONB re-sorts object keys, so `headers` alone cannot carry the sequence.
+    header_order: Mapped[Optional[list]] = mapped_column(JSONB)
     misconfig_score: Mapped[Optional[float]] = mapped_column(Float, default=0)
     scanned_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
 

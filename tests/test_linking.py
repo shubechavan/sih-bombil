@@ -44,13 +44,14 @@ HARD_NEGATIVES = {tuple(c["pair"]): c for c in TRUTH["hard_negatives"]}
 def engine():
     """The whole pipeline, run once."""
     corpus = load_corpus_from_fixtures()
-    results, writeprints, behaviours = resolve_pairs(corpus)
+    results, writeprints, behaviours, infra = resolve_pairs(corpus)
     return {
         "corpus": corpus,
         "results": results,
         "by_pair": {r.pair: r for r in results},
         "writeprints": writeprints,
         "behaviours": behaviours,
+        "infra": infra,
     }
 
 

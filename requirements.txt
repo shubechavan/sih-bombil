@@ -27,6 +27,13 @@ beautifulsoup4==4.12.3
 stem==1.8.2
 PySocks==1.7.1
 
+# --- Recon (live path only; fixtures mode imports neither) ---
+# Shodan-compatible favicon hashing in recon/fingerprint.py.
+mmh3==4.1.0
+# TLS certificate parsing for https onions. Read-only: recon never validates a
+# certificate, it records the one the server presents to every visitor.
+cryptography==46.0.7
+
 
 # --- App ---
 streamlit==1.35.0

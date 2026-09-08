@@ -55,6 +55,7 @@ for _stream in (sys.stdout, sys.stderr):
 
 from db import MIN_STYLOMETRY_CHARS  # noqa: E402
 from link import graph as graph_module  # noqa: E402
+from link import infra as infra_module  # noqa: E402
 from link.resolve import (  # noqa: E402
     PairResult,
     load_corpus,
@@ -120,13 +121,21 @@ def label(pair: tuple[int, int], handles: Mapping[int, str]) -> str:
 # Reporting
 # ─────────────────────────────────────────────────────────────────────────────
 
+def component(result: PairResult, key: str) -> str:
+    """A component value, or a dash where it was not assessed.
+
+    Every component is Optional. Formatting one with `:.3f` without checking is
+    how a report crashes on exactly the pair that was most interesting.
+    """
+    value = result.attribution.components.get(key)
+    return "  --  " if value is None else f"{value:.3f}"
+
+
 def describe_pair(result: PairResult, handles: Mapping[int, str]) -> str:
-    components = result.attribution.components
-    def fmt(key: str) -> str:
-        value = components.get(key)
-        return "  --  " if value is None else f"{value:.3f}"
     return (f"    {label(result.pair, handles)} {result.score:.3f} "
-            f"{result.band:<9}  H={fmt('H')} S={fmt('S')} B={fmt('B')}")
+            f"{result.band:<9}  H={component(result, 'H')} "
+            f"S={component(result, 'S')} B={component(result, 'B')} "
+            f"I={component(result, 'I')}")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -146,6 +155,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         default=graph_module.DEFAULT_THRESHOLD,
                         help="minimum score for a graph edge (default: the "
                              "PROBABLE floor)")
+    parser.add_argument("--infra", choices=("off", "site-broadcast"),
+                        default="off",
+                        help="off (default): I is measured only where a persona "
+                             "controls a fingerprinted host, which on this "
+                             "corpus is nowhere. site-broadcast: a deliberately "
+                             "UNSOUND mode that hands every vendor its market's "
+                             "fingerprint, kept only to measure the harm")
     args = parser.parse_args(argv)
 
     renormalise = not args.no_renormalise
@@ -161,8 +177,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             require_schema(session)
             corpus = load_corpus(session)
 
-    results, writeprints, behaviours = resolve_pairs(
-        corpus, preset=args.preset, renormalise=renormalise
+    findings = infra_module.load_findings()
+    baseline_infra = infra_module.build(
+        corpus.personas, findings, identifiers=corpus.identifiers
+    )
+    infra = baseline_infra
+    if args.infra == "site-broadcast":
+        infra = infra_module.build(
+            corpus.personas, findings, identifiers=corpus.identifiers,
+            mode="site-broadcast",
+        )
+
+    results, writeprints, behaviours, infra = resolve_pairs(
+        corpus, preset=args.preset, renormalise=renormalise, infra=infra
     )
     by_pair = {r.pair: r for r in results}
     scores = {r.pair: r.score for r in results}
@@ -181,8 +208,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"  weights   preset {args.preset}: " +
           "  ".join(f"{k} {v:.2f}" for k, v in weights.items()))
     print(f"  unmeasured components renormalised: {renormalise}")
-    print("  I is unmeasured for every pair — recon lands in Phase 3, so no pair")
-    print("            has certificate, favicon, banner or ETag evidence")
+    print(f"  infra     mode {args.infra}: "
+          f"{len(infra.hosts)}/{len(corpus.personas)} personas control a "
+          f"fingerprinted host")
+
+    if args.infra == "off":
+        print("  Recon ran and produced findings for all 3 sources, but they are")
+        print("  site-level: they fingerprint the marketplace, not the vendor. No")
+        print("  persona here controls a host of their own, so I is unmeasured on")
+        print("  every pair and its 0.15 weight is redistributed. See link/infra.py.")
+    else:
+        print(f"\n{RULE}")
+        print("  !! site-broadcast is DELIBERATELY UNSOUND. It is not a setting.")
+        print(RULE)
+        print("  It hands every vendor the fingerprint of the market they post on,")
+        print("  which makes I a constant across the 40 alpha×gamma pairs — the same")
+        print("  number for the 4 real migrations and the 36 that are not, so it")
+        print("  cannot rank anything. It exists so the harm below is measured")
+        print("  rather than asserted. Never turn it on to score a real case.")
 
     # ── pairwise ────────────────────────────────────────────────────────────
     print(f"\n{RULE}\nPAIRWISE — direct evidence only (method='pairwise')\n{RULE}")
@@ -260,6 +303,94 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("  Reported apart from the pairwise block on purpose: an inferred")
         print("  link is a lead with a path attached, not a second measurement.")
 
+    # ── what site-broadcast cost ────────────────────────────────────────────
+    if args.infra == "site-broadcast":
+        base_results, _, _, _ = resolve_pairs(
+            corpus, preset=args.preset, renormalise=renormalise,
+            infra=baseline_infra, writeprints=writeprints, behaviours=behaviours,
+        )
+        base = {r.pair: r for r in base_results}
+
+        print(f"\n{RULE}\nWHAT SITE-BROADCAST DID — every pair, against "
+              f"--infra off\n{RULE}")
+        print_table(score_table({p: r.score for p, r in base.items()}, positives))
+        print("  ↑ --infra off        ↓ --infra site-broadcast")
+        print_table(score_table(scores, positives))
+
+        moved = [
+            (p, base[p], by_pair[p]) for p in sorted(base)
+            if base[p].band != by_pair[p].band
+        ]
+        promoted = [m for m in moved
+                    if BAND_ORDER.index(m[2].band) < BAND_ORDER.index(m[1].band)]
+        demoted = [m for m in moved
+                   if BAND_ORDER.index(m[2].band) > BAND_ORDER.index(m[1].band)]
+
+        wrong = [m for m in promoted if m[0] not in positives]
+        print(f"\n  falsely promoted — {len(wrong)} pair(s) not in the answer key "
+              f"moved UP a band")
+        for pair, before, after in wrong:
+            print(f"    {label(pair, handles)} {before.band} "
+                  f"({before.score:.3f}) → {after.band} ({after.score:.3f})"
+                  f"   I={component(after, 'I')}")
+        if not wrong:
+            print("    none")
+
+        real = [m for m in demoted if m[0] in positives]
+        print(f"\n  demoted true positives — {len(real)} real migration(s) "
+              f"moved DOWN a band")
+        for pair, before, after in real:
+            print(f"    {label(pair, handles)} {before.band} "
+                  f"({before.score:.3f}) → {after.band} ({after.score:.3f})"
+                  f"   I={component(after, 'I')}")
+        if not real:
+            print("    none")
+
+        # A band change is a coarse instrument. The pairs that did not cross a
+        # floor still moved, and on this corpus that is where the damage is:
+        # precision survives while the room underneath it disappears.
+        base_scores = {p: r.score for p, r in base.items()}
+        base_negatives = {p: v for p, v in base_scores.items() if p not in positives}
+        base_worst = max(base_negatives, key=base_negatives.get)
+        base_reachable = [p for p in positives
+                          if base_scores[p] >= BAND_FLOORS["PROBABLE"]]
+        base_weakest = min(base_reachable, key=lambda p: base_scores[p])
+        base_margin = base_scores[base_weakest] - base_scores[base_worst]
+        new_margin = scores[weakest_positive] - scores[worst_negative] \
+            if reachable else float("nan")
+
+        print(f"\n  separation margin  {base_margin:+.3f} → {new_margin:+.3f}"
+              f"   ({new_margin - base_margin:+.3f})")
+        print(f"    strongest rejected pair {label(worst_negative, handles)}"
+              f" {base_scores[worst_negative]:.3f} → {scores[worst_negative]:.3f}")
+
+        climbers = sorted(
+            ((by_pair[p].score - base_scores[p], p) for p in base_negatives),
+            reverse=True,
+        )[:5]
+        print("\n  biggest gains among pairs that are NOT in the answer key:")
+        for delta, pair in climbers:
+            print(f"    {label(pair, handles)} {base_scores[pair]:.3f} → "
+                  f"{by_pair[pair].score:.3f}  ({delta:+.3f})"
+                  f"   I={component(by_pair[pair], 'I')}")
+
+        thin = [p for _, p in climbers
+                if any(pid in writeprints.refused for pid in p)]
+        if thin:
+            print("\n  Note what is at the top of that list. Those pairs contain the")
+            print("  persona stylometry REFUSED for having too little text, so their")
+            print("  S is unmeasured and renormalisation was carrying them. Giving")
+            print("  them a measured I of 0.96 replaces 'we do not know' with a")
+            print("  number — manufacturing confidence about the one persona the")
+            print("  system was right to say nothing about.")
+
+        print("\n  Every effect above has one cause. A vendor does not run the")
+        print("  market's web server, so I here is a property of the site: constant")
+        print("  across every alpha×gamma pair, and a measured 0.0 for anyone who")
+        print("  migrated to the forum instead. It lifts pairs that share a landlord")
+        print("  and penalises pairs that do not — which is the opposite of the")
+        print("  question 'are these two the same person'.")
+
     # ── hard negatives ──────────────────────────────────────────────────────
     print(f"\n{RULE}\nHARD NEGATIVES — designed to be refused\n{RULE}")
     failures: list[str] = []
@@ -275,9 +406,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         print(f"  [{verdict}] {label(pair, handles)} {result.score:.3f} "
               f"{result.band:<9}  ceiling {ceiling}")
-        components = result.attribution.components
-        print(f"         H={components['H']:.2f} "
-              f"S={components['S']:.3f} B={components['B']:.3f}")
+        print(f"         H={component(result, 'H')} S={component(result, 'S')} "
+              f"B={component(result, 'B')} I={component(result, 'I')}")
         print(f"         {case['reason']}")
 
     # ── refusals ────────────────────────────────────────────────────────────

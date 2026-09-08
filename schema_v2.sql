@@ -158,6 +158,11 @@ CREATE TABLE IF NOT EXISTS infra_findings (
     generator_meta   TEXT,                 -- <meta name="generator">
     clearnet_refs    JSONB,                -- absolute clearnet URLs found in the HTML
     headers          JSONB,
+    -- JSONB stores objects with their keys re-sorted (length, then bytewise), so
+    -- `headers` cannot preserve the order the server sent them in. The sequence
+    -- is itself a weak fingerprint of the software stack, so it is kept here as
+    -- an array — JSONB arrays *do* keep their order.
+    header_order     JSONB,                -- header names, in the order served
     misconfig_score  FLOAT DEFAULT 0,      -- how leaky this service is, 0..1
     scanned_at       TIMESTAMP DEFAULT NOW()
 );
@@ -293,6 +298,7 @@ ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS html_comments   JSONB;
 ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS generator_meta  TEXT;
 ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS clearnet_refs   JSONB;
 ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS headers         JSONB;
+ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS header_order    JSONB;
 ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS misconfig_score FLOAT DEFAULT 0;
 ALTER TABLE infra_findings ADD COLUMN IF NOT EXISTS scanned_at      TIMESTAMP DEFAULT NOW();
 

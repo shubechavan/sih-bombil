@@ -227,6 +227,95 @@ means regenerating the corpus, and the prose carrying those values feeds the sty
 from the key blocks rather than from `pgp_fingerprint(label)`. Recorded so nobody reads a doubled
 evidence list as a second key.
 
+### Infrastructure is site-level, so I is unmeasurable per persona (Phase 3 artifact)
+
+Phase 3 built recon and clearnet correlation, and both work: three fingerprints, thirteen
+correlation candidates, every planted pivot recovered (see below). **The `I` term is still
+unmeasured on all 190 pairs, and that is the correct outcome rather than an unfinished one.**
+
+`I` measures infrastructure the personas *control*. Every other term in
+`A = 0.40H + 0.25S + 0.20B + 0.15I` measures something the two personas themselves produced — the
+identifiers they published, the words they wrote, when they posted. A vendor renting a stall on
+market_alpha does not run market_alpha's nginx. The favicon, ETag, banner and certificate in
+`infra_findings` belong to the marketplace operator, and alpha and gamma sharing them is evidence
+about *those two sites having one operator* — a real and useful finding, and not an answer to
+"is vendor X vendor Y".
+
+This corpus carries no persona-level infrastructure at all:
+
+- all 20 `profile_url` values resolve to the 3 source onions, varying only by path segment;
+- `fixtures/infra_findings.json` holds 3 rows, keyed `source_id`;
+- neither `infra_findings` nor `infra_correlations` has a `persona_id` column;
+- the 10 clearnet observations carry no vendor dimension;
+- the one near-miss, `onion_mirror` on personas 3 and 18, is already scored in **H** at 0.80, is the
+  same literal string on both sides rather than two hosts that fingerprint alike, and is one of the
+  six unreachable identifiers recorded above.
+
+So `link/infra.py` refuses **by rule**: I is measured only where both personas control a
+fingerprinted host. Point it at a corpus where vendors run their own mirrors and it measures —
+`tests/test_infra.py::test_two_vendors_running_their_own_hosts_are_measured` is exactly that case,
+passing.
+
+**The tempting alternative was measured rather than argued away.** `scripts/evaluate.py --infra
+site-broadcast` implements the discredited design — hand every vendor its market's fingerprint — and
+prints what it costs. On this corpus:
+
+| | `--infra off` | `--infra site-broadcast` |
+|---|---|---|
+| precision, all bands | 1.000 | 1.000 |
+| recall @ CONFIRMED | 6/8 | **4/8** |
+| recall @ PROBABLE | 6/8 | 6/8 |
+| hard negatives | both WEAK | both WEAK |
+| separation margin | **+0.508** | **+0.287** |
+
+It does not manufacture a false positive here, but it takes 43% of the margin and demotes two real
+migrations — 1~9 and 2~10, CONFIRMED → PROBABLE — because those vendors moved to forum_beta, which
+shares no infrastructure with market_alpha, so they lose renormalisation and gain nothing. Meanwhile
+the largest gains all land on pairs containing persona 7, the persona stylometry *refuses* for having
+too little text: giving it a measured I of 0.964 replaces "we do not know" with a number. The hard
+negative 2~20 rises 0.242 → 0.337 and the strongest rejected pair 14~15 rises 0.345 → 0.438, within
+0.012 of the POSSIBLE floor.
+
+Not being fixed now, and the fix is again a Phase 0 change: give two or three vendors their own
+mirror hosts with distinct fingerprints and add `infra_findings` rows for them, so a persona-level I
+has something to measure. Recorded so nobody reads an unmeasured I as an unbuilt one.
+
+### misconfig_score: rubric vs the declared fixture values (Phase 3 artifact)
+
+`recon/fingerprint.py::score_misconfig` is a weighted checklist over ten leak signals, applied
+identically in fixtures and live mode so the two `--source` modes mean the same pipeline. The
+hand-authored `misconfig_score` values in `fixtures/infra_findings.json` predate it and were not
+derived from any rubric:
+
+| source | declared | computed | Δ |
+|---|---|---|---|
+| market_alpha | 0.72 | 0.708 | −0.012 |
+| forum_beta | 0.41 | 0.396 | −0.014 |
+| market_gamma | 0.68 | 0.708 | +0.028 |
+
+Close enough to be reassuring, with one structural note: **the rubric scores market_alpha and
+market_gamma identically**, because their leak signals are identical — both expose `/server-status`,
+both reference the same CDN, both carry the same robots.txt, ETag, `X-Powered-By` and HTML build
+comment. The declared values differ by 0.04 and imply a distinction the data does not contain.
+Recorded, not patched: the fixture file keeps its numbers and the weights were not tuned backwards to
+reproduce them.
+
+### JSONB does not preserve header order (Phase 3 schema addition)
+
+The banner rule scores 0.40 only when the product/version matches **and** the shared response headers
+appear in the same sequence, since header order is a weak fingerprint of the software stack. That
+signal did not survive storage: **PostgreSQL `JSONB` re-sorts object keys** (by length, then
+bytewise), so `{Server, X-Powered-By, ETag, Content-Type}` came back as
+`{ETag, Server, Content-Type, X-Powered-By}` and `recon/correlate.py --source db` silently returned
+6 candidates where `--source fixtures` returned 13.
+
+Fixed rather than recorded, because it made the two `--source` modes disagree: `infra_findings` gains
+an additive `header_order JSONB` column holding the names as an **array**, which JSONB does keep in
+order. `Fingerprint.header_order` is deliberately never defaulted from `headers` — an empty list
+means "the order is not known" and the banner rule declines, rather than comparing a sequence the
+storage layer invented. Both writers (`recon/fingerprint.py` and `scripts/load_fixtures.py`) populate
+it, and both `--source` modes now return the same 13 candidates.
+
 ---
 
 ## 7. Build order (5 phases)

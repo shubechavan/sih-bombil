@@ -329,6 +329,10 @@ def load_infra(session, rows: list[dict]) -> int:
     infra_findings has no natural key — a real scan appends a new observation
     every time — so idempotency here means clearing this onion's fixture rows
     before writing them again.
+
+    `header_order` is derived from the key order of the fixture `headers` object,
+    which json.loads preserves. It has to be stored separately because JSONB
+    re-sorts object keys, and recon/correlate.py matches on that order.
     """
     urls = [row["onion_url"] for row in rows]
     session.execute(delete(InfraFinding.__table__).where(
@@ -338,6 +342,8 @@ def load_infra(session, rows: list[dict]) -> int:
         {
             **{k: v for k, v in row.items()
                if k not in {"scanned_at", "tls_not_before"}},
+            "header_order": list(row.get("header_order")
+                                 or (row.get("headers") or {})),
             "tls_not_before": _ts(row.get("tls_not_before")),
             "scanned_at": _ts(row["scanned_at"]),
         }

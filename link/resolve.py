@@ -78,6 +78,7 @@ from db import (  # noqa: E402
 )
 from extract.normalize import normalize_handle, normalize_identifier  # noqa: E402
 from link import behaviour as behaviour_module  # noqa: E402
+from link import infra as infra_module  # noqa: E402
 from link import stylometry as stylometry_module  # noqa: E402
 from score.attribution import (  # noqa: E402
     DEFAULT_PRESET,
@@ -342,8 +343,10 @@ def resolve_pairs(
     renormalise: bool = RENORMALISE_UNMEASURED,
     writeprints: Optional[stylometry_module.WriteprintSet] = None,
     behaviours: Optional[behaviour_module.BehaviourSet] = None,
+    infra: Optional[infra_module.InfraSet] = None,
     session=None,
-) -> tuple[list[PairResult], stylometry_module.WriteprintSet, behaviour_module.BehaviourSet]:
+) -> tuple[list[PairResult], stylometry_module.WriteprintSet,
+           behaviour_module.BehaviourSet, infra_module.InfraSet]:
     """Score every unordered pair. Nothing is written.
 
     Returned separately from storage so scripts/evaluate.py can measure the
@@ -359,12 +362,19 @@ def resolve_pairs(
         )
     if behaviours is None:
         behaviours = behaviour_module.build(corpus.posts)
+    if infra is None:
+        infra = infra_module.build(
+            corpus.personas,
+            infra_module.load_findings(session=session),
+            identifiers=corpus.identifiers,
+        )
 
     results: list[PairResult] = []
     for a, b in itertools.combinations(corpus.persona_ids, 2):
         h, hard = hard_evidence(a, b, corpus)
         s = writeprints.similarity(a, b)
         bvalue = behaviours.similarity(a, b)
+        ivalue = infra.similarity(a, b)
 
         reasons: dict[str, str] = {}
         if s is None:
@@ -377,14 +387,19 @@ def resolve_pairs(
                 behaviours.refusal_reason(a) or behaviours.refusal_reason(b)
                 or "behaviour did not run for this pair"
             )
-        # Phase 2 has no recon. I is unmeasured for every pair, never zero.
-        reasons["I"] = (
-            "infrastructure not assessed — recon lands in Phase 3, so no "
-            "certificate, favicon, banner or ETag comparison exists for this pair"
-        )
+        if ivalue is None:
+            # Recon has run. What it produced is site-level — it fingerprints
+            # the marketplace, not the vendor — so unless a persona controls a
+            # host of their own, there is nothing about *them* to compare.
+            # Unmeasured, never zero. See link/infra.py.
+            reasons["I"] = (
+                "infrastructure not assessed — "
+                + (infra.refusal_reason(a) or infra.refusal_reason(b)
+                   or "neither persona controls a fingerprinted host")
+            )
 
         attribution = attribution_score(
-            h=h, s=s, b=bvalue, i=None,
+            h=h, s=s, b=bvalue, i=ivalue,
             preset=preset, renormalise=renormalise, reasons=reasons,
         )
 
@@ -408,6 +423,13 @@ def resolve_pairs(
                 "detail": f"behavioural similarity {bvalue:.3f}",
                 "weight": bvalue,
             })
+        if ivalue is not None:
+            evidence.extend(infra.explain(a, b))
+            evidence.append({
+                "type": "infra_score",
+                "detail": f"infrastructure overlap {ivalue:.3f}",
+                "weight": ivalue,
+            })
         evidence.extend(attribution.evidence)
 
         results.append(PairResult(
@@ -415,7 +437,7 @@ def resolve_pairs(
             evidence=evidence, had_hard_evidence=bool(hard),
         ))
 
-    return results, writeprints, behaviours
+    return results, writeprints, behaviours, infra
 
 
 def worth_storing(result: PairResult, min_score: float) -> bool:
@@ -519,13 +541,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # The writeprint cache lives in the database, so consulting it needs a
     # session even when the corpus itself came from fixtures.
     if args.dry_run:
-        results, writeprints, behaviours = resolve_pairs(
+        results, writeprints, behaviours, infra = resolve_pairs(
             corpus, preset=args.preset, renormalise=renormalise
         )
     else:
         with session_scope() as session:
             require_schema(session)
-            results, writeprints, behaviours = resolve_pairs(
+            results, writeprints, behaviours, infra = resolve_pairs(
                 corpus, preset=args.preset, renormalise=renormalise, session=session
             )
 
@@ -544,6 +566,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"    persona {persona_id} "
               f"({corpus.personas[persona_id]['handle']}): "
               f"{writeprints.refused[persona_id]} chars — S unmeasured")
+    print(f"  infrastructure ({infra.mode}): {len(infra.hosts)} persona(s) "
+          f"control a fingerprinted host, {len(infra.refusals)} do not")
     for persona_id in sorted(behaviours.refused):
         print(f"    persona {persona_id}: B unmeasured")
 
@@ -563,6 +587,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # ── write ───────────────────────────────────────────────────────────────
     action_hash = hashlib.sha256(json.dumps(
         {"preset": args.preset, "renormalise": renormalise,
+         # The infra mode changes what I means, so it changes what the scores
+         # below mean. Omitting it would let one hash stand for two runs.
+         "infra_mode": infra.mode,
          "pairs": [[r.persona_a, r.persona_b, round(r.score, 6)] for r in storable]},
         sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")).hexdigest()
