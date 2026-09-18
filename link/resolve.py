@@ -609,7 +609,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         session.flush()
 
         try:
-            stylometry_module.store(
+            prints_written = stylometry_module.store(
                 session, writeprints,
                 hour_histograms={pid: profile.hour_histogram
                                  for pid, profile in behaviours.profiles.items()},
@@ -625,8 +625,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         scan.status = "ok"
         scan.finished_at = utcnow()
 
+        refused = len(writeprints.refused)
         print(f"\n  wrote {written} links (method='pairwise') and "
-              f"{len(writeprints.prints)} writeprints")
+              f"{prints_written} writeprint rows "
+              f"({len(writeprints.prints)} scored, {refused} refused and stored "
+              f"as such)")
         print("  actors table untouched and personas.actor_id left NULL — "
               "clustering is a separate decision")
         print(f"\n  audit row: scan id {scan.id}, operator {operator}, "

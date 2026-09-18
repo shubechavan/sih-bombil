@@ -416,12 +416,21 @@ class Writeprint(Base):
     features: Mapped[Optional[dict]] = mapped_column(JSONB)
     hour_hist: Mapped[Optional[list]] = mapped_column(JSONB)
     feature_version: Mapped[Optional[str]] = mapped_column(Text)
+    #: Set when the persona was below the stylometry floor: `vector` is NULL,
+    #: `char_count` is what was actually available, and this says why no
+    #: writeprint was built. A refusal is a finding, not an absence of data.
+    refused_reason: Mapped[Optional[str]] = mapped_column(Text)
     computed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
 
     persona: Mapped["Persona"] = relationship(back_populates="writeprint")
 
+    @property
+    def refused(self) -> bool:
+        return self.vector is None
+
     def __repr__(self) -> str:
-        return f"<Writeprint p={self.persona_id} chars={self.char_count}>"
+        state = "REFUSED" if self.refused else f"chars={self.char_count}"
+        return f"<Writeprint p={self.persona_id} {state}>"
 
 
 class Link(Base):
@@ -448,10 +457,14 @@ class Link(Base):
     )
     score: Mapped[float] = mapped_column(Float, nullable=False)
     band: Mapped[str] = mapped_column(Text, nullable=False)
-    h_score: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    # No defaults on any of the four. NULL means "not assessed"; 0.0 means
+    # "compared, and they had nothing in common". A default of 0 turned an
+    # unmeasured component into a measured zero on the way into the table,
+    # contradicting the distinction score/attribution.py exists to protect.
+    h_score: Mapped[Optional[float]] = mapped_column(Float)
     s_score: Mapped[Optional[float]] = mapped_column(Float)  # NULL below the char floor
     b_score: Mapped[Optional[float]] = mapped_column(Float)
-    i_score: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    i_score: Mapped[Optional[float]] = mapped_column(Float)  # NULL without a controlled host
     evidence: Mapped[list] = mapped_column(JSONB, nullable=False)
     method: Mapped[Optional[str]] = mapped_column(Text)
     reviewed: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)

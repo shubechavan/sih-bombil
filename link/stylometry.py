@@ -485,19 +485,41 @@ def store(session, writeprints: WriteprintSet,
     """
     hour_histograms = hour_histograms or {}
     written = 0
-    for persona_id, writeprint in writeprints.prints.items():
+
+    def row_for(persona_id: int) -> WriteprintRow:
         row = session.get(WriteprintRow, persona_id)
         if row is None:
             row = WriteprintRow(persona_id=persona_id)
             session.add(row)
+        histogram = hour_histograms.get(persona_id)
+        row.hour_hist = (
+            [round(float(x), 6) for x in histogram] if histogram is not None else None
+        )
+        row.computed_at = utcnow()
+        return row
+
+    for persona_id, writeprint in writeprints.prints.items():
+        row = row_for(persona_id)
         row.char_count = writeprint.char_count
         row.vector = writeprint.vector.astype(np.float32).tobytes()
         row.features = writeprint.features
-        histogram = hour_histograms.get(persona_id)
-        row.hour_hist = [round(float(x), 6) for x in histogram] if histogram is not None else None
         row.feature_version = writeprint.feature_version
-        row.computed_at = utcnow()
+        row.refused_reason = None
         written += 1
+
+    # Refusals get a row too. A persona we declined to score is a finding —
+    # storing only the successes would leave it visible in terminal output and
+    # nowhere a reader of the database could ever find it. vector NULL is the
+    # marker; char_count is what was actually there.
+    for persona_id in writeprints.refused:
+        row = row_for(persona_id)
+        row.char_count = writeprints.refused[persona_id]
+        row.vector = None
+        row.features = None
+        row.feature_version = writeprints.feature_version
+        row.refused_reason = writeprints.refusal_reason(persona_id)
+        written += 1
+
     return written
 
 

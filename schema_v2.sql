@@ -112,6 +112,11 @@ CREATE TABLE IF NOT EXISTS writeprints (
     hour_hist       JSONB,                 -- 24 normalised buckets
     feature_version TEXT,                  -- extractor version; a cached vector from a
                                            -- different version must not be compared
+    -- A persona below the 300-character floor gets a row with vector NULL, its
+    -- real char_count, and the reason here. Refusing to score is a finding in
+    -- its own right; storing only the successes would leave the strongest thing
+    -- this engine does visible in terminal output and nowhere else.
+    refused_reason  TEXT,
     computed_at     TIMESTAMP DEFAULT NOW()
 );
 
@@ -122,10 +127,15 @@ CREATE TABLE IF NOT EXISTS links (
     persona_b     INTEGER NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
     score         FLOAT NOT NULL,          -- attribution confidence A, 0..1
     band          TEXT NOT NULL,           -- CONFIRMED | PROBABLE | POSSIBLE | WEAK
-    h_score       FLOAT DEFAULT 0,         -- hard identifier component
+    -- All four are NULL-able and carry NO default. NULL means "not assessed";
+    -- 0.0 means "compared, and they had nothing in common". The engine has
+    -- enforced that distinction since Phase 2 (score/attribution.py refuses to
+    -- treat None as zero and renormalises instead), and a column default of 0
+    -- silently contradicted it — an unmeasured I was stored as a measured 0.0.
+    h_score       FLOAT,                   -- hard identifier component
     s_score       FLOAT,                   -- stylometry (NULL if below the 300-char floor)
     b_score       FLOAT,                   -- behavioural
-    i_score       FLOAT DEFAULT 0,         -- infrastructure
+    i_score       FLOAT,                   -- infrastructure (NULL if no persona-controlled host)
     evidence      JSONB NOT NULL,          -- [{type, detail, weight}] — never empty
     method        TEXT,                    -- which pass created it
     reviewed      BOOLEAN DEFAULT FALSE,
@@ -262,16 +272,22 @@ ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS vector          BYTEA;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS features        JSONB;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS hour_hist       JSONB;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS feature_version TEXT;
+ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS refused_reason  TEXT;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS computed_at     TIMESTAMP DEFAULT NOW();
 
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_a    INTEGER REFERENCES personas(id) ON DELETE CASCADE;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_b    INTEGER REFERENCES personas(id) ON DELETE CASCADE;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS score        FLOAT;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS band         TEXT;
-ALTER TABLE links ADD COLUMN IF NOT EXISTS h_score      FLOAT DEFAULT 0;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS h_score      FLOAT;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS s_score      FLOAT;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS b_score      FLOAT;
-ALTER TABLE links ADD COLUMN IF NOT EXISTS i_score      FLOAT DEFAULT 0;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS i_score      FLOAT;
+-- Earlier revisions created h_score and i_score with DEFAULT 0, which turned an
+-- unmeasured component into a measured zero on the way into the table. Dropping
+-- a default that is not there is a no-op, so this stays re-runnable.
+ALTER TABLE links ALTER COLUMN h_score DROP DEFAULT;
+ALTER TABLE links ALTER COLUMN i_score DROP DEFAULT;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS evidence     JSONB;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS method       TEXT;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS reviewed     BOOLEAN DEFAULT FALSE;
