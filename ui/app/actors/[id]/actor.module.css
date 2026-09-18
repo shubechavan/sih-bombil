@@ -1,0 +1,217 @@
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+	padding: 1.5rem;
+}
+.back {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	width: fit-content;
+	font-size: 0.78rem;
+	color: var(--ds-text-muted, #9aa3b2);
+	text-decoration: none;
+}
+.back:hover {
+	color: var(--ds-accent, #4da3ff);
+}
+.header {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.title {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0;
+	font-family: var(--ds-font-display, sans-serif);
+	font-size: 1.5rem;
+	color: var(--ds-text, #e6e9ef);
+}
+.meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	font-size: 0.78rem;
+	color: var(--ds-text-muted, #9aa3b2);
+	font-family: var(--ds-font-mono, monospace);
+}
+.notes {
+	margin: 0;
+	max-width: 78ch;
+	font-size: 0.8rem;
+	line-height: 1.6;
+	color: var(--ds-text-dim, #7c8493);
+}
+.personas {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+	gap: 1rem;
+}
+.persona {
+	display: flex;
+	flex-direction: column;
+	gap: 0.65rem;
+	border: 1px solid var(--ds-border, #2b3039);
+	border-radius: var(--ds-radius-md, 6px);
+	padding: 0.85rem;
+	background: var(--ds-glass, rgba(255, 255, 255, 0.02));
+}
+.personaHead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+.personaHandle {
+	margin: 0;
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.95rem;
+	color: var(--ds-text, #e6e9ef);
+}
+.personaSource {
+	font-size: 0.72rem;
+	color: var(--ds-text-dim, #6b7280);
+}
+.bio {
+	margin: 0;
+	font-size: 0.8rem;
+	line-height: 1.6;
+	color: var(--ds-text-muted, #9aa3b2);
+}
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	border: 1px solid var(--ds-border, #2b3039);
+	border-radius: var(--ds-radius-pill, 999px);
+	padding: 0.15rem 0.5rem;
+	font-size: 0.68rem;
+	font-family: var(--ds-font-mono, monospace);
+	cursor: help;
+	max-width: 100%;
+}
+.chip[data-derived="false"] {
+	border-color: var(--ds-high-border, rgba(251, 146, 60, 0.4));
+	background: var(--ds-high-bg, rgba(251, 146, 60, 0.08));
+}
+.chipType {
+	color: var(--ds-accent, #4da3ff);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.chipValue {
+	color: var(--ds-text-muted, #9aa3b2);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 17ch;
+}
+.chipFlag {
+	color: var(--ds-high, #fb923c);
+	font-size: 0.6rem;
+	letter-spacing: 0.05em;
+}
+.posts {
+	font-size: 0.78rem;
+}
+.postsSummary {
+	cursor: pointer;
+	color: var(--ds-text-dim, #6b7280);
+}
+.post {
+	margin: 0.5rem 0 0;
+	padding-left: 0.65rem;
+	border-left: 2px solid var(--ds-border, #2b3039);
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+.post p {
+	margin: 0;
+	font-size: 0.76rem;
+	line-height: 1.55;
+	color: var(--ds-text-muted, #9aa3b2);
+}
+.postMeta {
+	font-size: 0.65rem;
+	color: var(--ds-text-dim, #6b7280);
+	font-family: var(--ds-font-mono, monospace);
+}
+.links {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+.link {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	border: 1px solid var(--ds-border, #2b3039);
+	border-radius: var(--ds-radius-md, 6px);
+	padding: 0.9rem;
+	background: var(--ds-glass, rgba(255, 255, 255, 0.02));
+}
+.linkHead {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+.linkPair {
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.9rem;
+	color: var(--ds-text, #e6e9ef);
+}
+.tilde {
+	color: var(--ds-accent, #4da3ff);
+	margin: 0 0.15rem;
+}
+.evidenceTitle {
+	margin: 0;
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.68rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ds-text-dim, #6b7280);
+}
+.timeline {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.3rem;
+	height: 130px;
+	padding-top: 0.5rem;
+}
+.bar {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-end;
+	height: 100%;
+	gap: 0.25rem;
+}
+.barFill {
+	width: 100%;
+	min-height: 2px;
+	border-radius: 2px 2px 0 0;
+	background: linear-gradient(180deg, var(--ds-accent, #4da3ff), var(--ds-accent-dim, #2d6fb8));
+}
+.barLabel {
+	font-size: 0.58rem;
+	color: var(--ds-text-dim, #6b7280);
+	font-family: var(--ds-font-mono, monospace);
+}
+.error {
+	color: var(--ds-critical, #f87171);
+	font-size: 0.85rem;
+}

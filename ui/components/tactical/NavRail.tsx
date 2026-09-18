@@ -16,6 +16,10 @@ import {
   Workflow,
   Fingerprint,
   Activity,
+  Users,
+  Share2,
+  CalendarRange,
+  Download,
 } from "lucide-react";
 import styles from "./NavRail.module.css";
 
@@ -30,6 +34,10 @@ const ICONS: Record<string, React.ElementType> = {
   Workflow,
   Fingerprint,
   Activity,
+  Users,
+  Share2,
+  CalendarRange,
+  Download,
 };
 
 interface NavItem {

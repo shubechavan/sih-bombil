@@ -1,0 +1,92 @@
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.item {
+	display: flex;
+	gap: 0.65rem;
+	align-items: flex-start;
+	padding: 0.5rem 0.6rem;
+	border-left: 2px solid var(--ds-border-subtle, rgba(255, 255, 255, 0.08));
+	border-radius: 0 var(--ds-radius-sm, 4px) var(--ds-radius-sm, 4px) 0;
+	background: var(--ds-glass, rgba(255, 255, 255, 0.02));
+}
+
+/* The refusal is the point, not a footnote. */
+.item[data-unmeasured="true"] {
+	border-left-color: var(--ds-medium, #f0b429);
+	background: var(--ds-medium-bg, rgba(240, 180, 41, 0.08));
+}
+
+.kind {
+	flex: 0 0 auto;
+	min-width: 5.75rem;
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.66rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ds-text-dim, #6b7280);
+	padding-top: 0.15rem;
+}
+
+.body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.detail {
+	margin: 0;
+	font-size: 0.82rem;
+	line-height: 1.55;
+	color: var(--ds-text, #e6e9ef);
+	overflow-wrap: anywhere;
+}
+
+.tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin-top: 0.3rem;
+}
+
+.weight,
+.derived,
+.declared {
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.65rem;
+	letter-spacing: 0.04em;
+	border-radius: var(--ds-radius-pill, 999px);
+	padding: 0.08rem 0.45rem;
+	white-space: nowrap;
+}
+
+.weight {
+	color: var(--ds-text-dim, #6b7280);
+	border: 1px solid var(--ds-border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.derived {
+	color: var(--ds-low, #4ade80);
+	border: 1px solid var(--ds-low-border, rgba(74, 222, 128, 0.35));
+	background: var(--ds-low-bg, rgba(74, 222, 128, 0.08));
+}
+
+/* A value the corpus declares but no extractor could find. Marked clearly:
+   citing it as though the pipeline discovered it would be an overclaim. */
+.declared {
+	color: var(--ds-high, #fb923c);
+	border: 1px solid var(--ds-high-border, rgba(251, 146, 60, 0.4));
+	background: var(--ds-high-bg, rgba(251, 146, 60, 0.1));
+	cursor: help;
+}
+
+.empty {
+	margin: 0;
+	font-size: 0.82rem;
+	color: var(--ds-text-muted, #8b93a1);
+}

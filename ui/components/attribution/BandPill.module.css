@@ -1,0 +1,65 @@
+.pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	border-radius: var(--ds-radius-pill, 999px);
+	padding: 0.15rem 0.55rem;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+
+.dot {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.score {
+	font-weight: 500;
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+
+.pill[data-band="CONFIRMED"] {
+	color: var(--ds-critical, #f87171);
+	border-color: var(--ds-critical-border, rgba(248, 113, 113, 0.4));
+	background: var(--ds-critical-bg, rgba(248, 113, 113, 0.1));
+}
+
+.pill[data-band="PROBABLE"] {
+	color: var(--ds-high, #fb923c);
+	border-color: var(--ds-high-border, rgba(251, 146, 60, 0.4));
+	background: var(--ds-high-bg, rgba(251, 146, 60, 0.1));
+}
+
+.pill[data-band="POSSIBLE"] {
+	color: var(--ds-medium, #f0b429);
+	border-color: var(--ds-medium-border, rgba(240, 180, 41, 0.4));
+	background: var(--ds-medium-bg, rgba(240, 180, 41, 0.1));
+}
+
+.pill[data-band="WEAK"] {
+	color: var(--ds-low, #4ade80);
+	border-color: var(--ds-low-border, rgba(74, 222, 128, 0.35));
+	background: var(--ds-low-bg, rgba(74, 222, 128, 0.08));
+}
+
+/* Never merged — distinct from WEAK on purpose. */
+.pill[data-band="none"] {
+	color: var(--ds-text-dim, #6b7280);
+	border-color: var(--ds-border-subtle, rgba(255, 255, 255, 0.1));
+	background: transparent;
+	cursor: help;
+}
+
+.pill[data-band="refused"] {
+	color: var(--ds-medium, #f0b429);
+	border-color: var(--ds-medium-border, rgba(240, 180, 41, 0.45));
+	background: var(--ds-medium-bg, rgba(240, 180, 41, 0.1));
+	cursor: help;
+}

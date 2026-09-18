@@ -43,8 +43,14 @@ export const THREAT_CATEGORIES = [
   "other",
 ] as const;
 
+// Attribution (Phase 4) sits above the v1 pages, which are still the Dark
+// Sentinel v1 content-threat views and are not wired to the attribution API.
 export const NAV_ITEMS = [
   { href: "/", label: "Mission Control", icon: "LayoutDashboard" },
+  { href: "/actors", label: "Actors", icon: "Users" },
+  { href: "/graph", label: "Link Graph", icon: "Share2" },
+  { href: "/timeline", label: "Timeline", icon: "CalendarRange" },
+  { href: "/export", label: "Export", icon: "Download" },
   { href: "/pipeline", label: "Pipeline", icon: "Workflow" },
   { href: "/threats", label: "Threat Feed", icon: "Shield" },
   { href: "/analytics", label: "Analytics", icon: "BarChart3" },

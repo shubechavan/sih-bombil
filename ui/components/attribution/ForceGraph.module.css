@@ -1,0 +1,44 @@
+.svg {
+	width: 100%;
+	height: auto;
+	display: block;
+	background: radial-gradient(
+		circle at 50% 40%,
+		var(--ds-accent-glow, rgba(77, 163, 255, 0.05)),
+		transparent 60%
+	);
+	border-radius: var(--ds-radius-lg, 10px);
+}
+
+.edge {
+	cursor: pointer;
+	transition: stroke-opacity var(--ds-duration-fast, 140ms) var(--ds-ease, ease);
+}
+
+.edge:hover {
+	stroke-opacity: 1;
+}
+
+.edge[data-active="true"] {
+	filter: drop-shadow(0 0 6px currentColor);
+}
+
+.node {
+	cursor: pointer;
+}
+
+.label {
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 10px;
+	fill: var(--ds-text-muted, #9aa3b2);
+	pointer-events: none;
+	user-select: none;
+}
+
+.empty {
+	margin: 0;
+	padding: 2rem;
+	text-align: center;
+	color: var(--ds-text-muted, #8b93a1);
+	font-size: 0.85rem;
+}
