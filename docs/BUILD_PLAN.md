@@ -145,13 +145,22 @@ You cannot rely on live onion crawling in a 6-minute demo. Engines go down, Tor 
 markets vanish. Build a **seed corpus** on day 1:
 
 ```
-fixtures/
-  market_alpha/      vendor pages, listings, feedback  (12 vendors)
-  forum_beta/        threads + posts                   (30 threads)
+fixtures/                                              <- PLANNED. Not what shipped.
+  market_alpha/      vendor pages, listings, feedback  (12 vendors  -> shipped 8)
+  forum_beta/        threads + posts                   (30 threads  -> shipped 7 personas)
   market_gamma/      the "migration" — 4 of the alpha vendors rebranded
   clearnet_obs/      fake Shodan-style records for the correlation demo
   ground_truth.json  which persona is really which actor
 ```
+
+> **The generated corpus came out smaller than this plan — 8 / 7 / 5 personas (20 total, 200 posts)
+> across market_alpha / forum_beta / market_gamma, not 12 vendors and 30 threads. `fixtures/` is the
+> source of truth for every corpus count; count it, never quote the figures above.**
+>
+> This paragraph exists because two generated documents already lifted "12 vendors" and "30 threads"
+> straight out of the block above and published them as fact. Everything in this file is the plan as
+> written before the build, kept for its rationale — where it disagrees with the repository, the
+> repository is right.
 
 Two wins from this:
 1. The demo is deterministic and works offline.
