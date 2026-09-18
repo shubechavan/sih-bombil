@@ -38,7 +38,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
+import textwrap
 from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
@@ -71,6 +73,35 @@ from score.attribution import (  # noqa: E402
 FIXTURES = ROOT / "fixtures"
 BAND_FLOORS = {"CONFIRMED": 0.85, "PROBABLE": 0.65, "POSSIBLE": 0.45}
 RULE = "─" * 78
+
+#: Prose is hard-wrapped here rather than left to the terminal.
+#:
+#: A soft wrap is not a character — it is the renderer deciding where the line
+#: ends — so anything that captures the output and drops it glues the words
+#: either side together. On a 61-column terminal the break in "…but they are"
+#: lands between "they" and "are", and the break in "…register, a greeting"
+#: lands between "a" and "greeting", which is how correct source becomes
+#: "theyare" and "agreeting" on a projector. textwrap emits real newlines at
+#: word boundaries, so there is nothing left for a renderer to get wrong.
+PROSE_WIDTH = max(40, min(shutil.get_terminal_size((80, 24)).columns - 2, 78))
+
+#: The pair rows are a table — columns have to line up, so they cannot be
+#: re-wrapped the way prose can. This is the widest one: a transitive row with
+#: its "NOT IN GROUND TRUTH" marker. Below this the terminal will fold them.
+TABLE_WIDTH = 108
+
+
+def say(text: str, indent: str = "  ") -> None:
+    """Print a paragraph hard-wrapped to PROSE_WIDTH, never mid-phrase."""
+    print(textwrap.fill(" ".join(text.split()), width=PROSE_WIDTH,
+                        initial_indent=indent, subsequent_indent=indent))
+
+
+def field(label: str, text: str, width: int = 10) -> None:
+    """A `label   value` header line, wrapped with the value column hanging."""
+    print(textwrap.fill(" ".join(text.split()), width=PROSE_WIDTH,
+                        initial_indent=f"  {label:<{width}}",
+                        subsequent_indent=" " * (2 + width)))
 
 
 def load_ground_truth() -> dict:
@@ -199,33 +230,44 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # ── header ──────────────────────────────────────────────────────────────
     print(RULE)
     print("Dark Sentinel v2 — linking engine evaluation")
-    print("on a synthetic corpus with known ground truth "
-          "(fixtures/ground_truth.json)")
+    say("on a synthetic corpus with known ground truth "
+        "(fixtures/ground_truth.json)", indent="")
     print(RULE)
-    print(f"  corpus    {len(corpus.personas)} personas, {len(results)} pairs, "
-          f"{truth['actor_count']} actors, {len(positives)} expected positive pairs")
-    print(f"  source    {args.source}")
-    print(f"  weights   preset {args.preset}: " +
-          "  ".join(f"{k} {v:.2f}" for k, v in weights.items()))
-    print(f"  unmeasured components renormalised: {renormalise}")
-    print(f"  infra     mode {args.infra}: "
-          f"{len(infra.hosts)}/{len(corpus.personas)} personas control a "
-          f"fingerprinted host")
+    field("corpus", f"{len(corpus.personas)} personas, {len(results)} pairs, "
+                    f"{truth['actor_count']} actors, {len(positives)} expected "
+                    f"positive pairs")
+    field("source", args.source)
+    field("weights", f"preset {args.preset}: " + "  ".join(
+        f"{k} {v:.2f}" for k, v in weights.items()))
+    field("renorm", f"unmeasured components renormalised: {renormalise}")
+    field("infra", f"mode {args.infra}: {len(infra.hosts)}/"
+                   f"{len(corpus.personas)} personas control a fingerprinted "
+                   f"host")
+
+    # Prose below is hard-wrapped and safe at any width, but the pair tables are
+    # fixed-column and will fold. Say so once rather than let a projector
+    # silently shuffle the numbers into the wrong columns.
+    columns = shutil.get_terminal_size((80, 24)).columns
+    if sys.stdout.isatty() and columns < TABLE_WIDTH:
+        print()
+        say(f"!! terminal is {columns} columns; the pair tables need "
+            f"{TABLE_WIDTH}. They will wrap and the columns will not line up. "
+            f"Widen the window, or redirect to a file and read it there.")
 
     if args.infra == "off":
-        print("  Recon ran and produced findings for all 3 sources, but they are")
-        print("  site-level: they fingerprint the marketplace, not the vendor. No")
-        print("  persona here controls a host of their own, so I is unmeasured on")
-        print("  every pair and its 0.15 weight is redistributed. See link/infra.py.")
+        say("Recon ran and produced findings for all 3 sources, but they are "
+            "site-level: they fingerprint the marketplace, not the vendor. No "
+            "persona here controls a host of their own, so I is unmeasured on "
+            "every pair and its 0.15 weight is redistributed. See link/infra.py.")
     else:
         print(f"\n{RULE}")
-        print("  !! site-broadcast is DELIBERATELY UNSOUND. It is not a setting.")
+        say("!! site-broadcast is DELIBERATELY UNSOUND. It is not a setting.")
         print(RULE)
-        print("  It hands every vendor the fingerprint of the market they post on,")
-        print("  which makes I a constant across the 40 alpha×gamma pairs — the same")
-        print("  number for the 4 real migrations and the 36 that are not, so it")
-        print("  cannot rank anything. It exists so the harm below is measured")
-        print("  rather than asserted. Never turn it on to score a real case.")
+        say("It hands every vendor the fingerprint of the market they post on, "
+            "which makes I a constant across the 40 alpha×gamma pairs — the "
+            "same number for the 4 real migrations and the 36 that are not, so "
+            "it cannot rank anything. It exists so the harm below is measured "
+            "rather than asserted. Never turn it on to score a real case.")
 
     # ── pairwise ────────────────────────────────────────────────────────────
     print(f"\n{RULE}\nPAIRWISE — direct evidence only (method='pairwise')\n{RULE}")
@@ -244,10 +286,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"\n  not reached — {len(missed)}/{len(positives)}")
         for result in missed:
             print(describe_pair(result, handles))
-        print("\n  Both share no identifier at all, so H = 0 and only S and B remain.")
-        print("  The answer key says as much itself: \"9<->16 share nothing hard and")
-        print("  must be resolved through the cluster\". Pairwise scoring cannot reach")
-        print("  these two and does not pretend to — see the closure block below.")
+        print()
+        say("Both share no identifier at all, so H = 0 and only S and B "
+            "remain. The answer key says as much itself: \"9<->16 share "
+            "nothing hard and must be resolved through the cluster\". Pairwise "
+            "scoring cannot reach these two and does not pretend to — see the "
+            "closure block below.")
 
     # The single most useful robustness number: how much room is there between
     # the weakest pair we accept and the strongest pair we reject? A high recall
@@ -274,12 +318,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         print(f"\n{RULE}\nTRANSITIVE CLOSURE — separate pass (method='transitive')"
               f"\n{RULE}")
-        print(f"  graph at threshold {args.threshold:.2f}: "
-              f"{graph.number_of_edges()} edges, {len(clusters)} multi-persona "
-              f"components")
+        say(f"graph at threshold {args.threshold:.2f}: "
+            f"{graph.number_of_edges()} edges, {len(clusters)} multi-persona "
+            f"components")
         for cluster in clusters:
             names = ", ".join(f"{p} ({handles.get(p, '?')})" for p in cluster)
-            print(f"    component: {names}")
+            say(f"component: {names}", indent="    ")
 
         if not closure:
             print("\n  the closure pass derived no new links")
@@ -300,8 +344,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         false_positives = [r for r in closure if r.pair not in positives]
         print(f"\n  closure added {len(closure)} link(s), "
               f"{len(false_positives)} of them wrong")
-        print("  Reported apart from the pairwise block on purpose: an inferred")
-        print("  link is a lead with a path attached, not a second measurement.")
+        say("Reported apart from the pairwise block on purpose: an inferred "
+            "link is a lead with a path attached, not a second measurement.")
 
     # ── what site-broadcast cost ────────────────────────────────────────────
     if args.infra == "site-broadcast":
@@ -327,8 +371,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                    if BAND_ORDER.index(m[2].band) > BAND_ORDER.index(m[1].band)]
 
         wrong = [m for m in promoted if m[0] not in positives]
-        print(f"\n  falsely promoted — {len(wrong)} pair(s) not in the answer key "
-              f"moved UP a band")
+        print()
+        say(f"falsely promoted — {len(wrong)} pair(s) not in the answer key "
+            f"moved UP a band")
         for pair, before, after in wrong:
             print(f"    {label(pair, handles)} {before.band} "
                   f"({before.score:.3f}) → {after.band} ({after.score:.3f})"
@@ -337,8 +382,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print("    none")
 
         real = [m for m in demoted if m[0] in positives]
-        print(f"\n  demoted true positives — {len(real)} real migration(s) "
-              f"moved DOWN a band")
+        print()
+        say(f"demoted true positives — {len(real)} real migration(s) "
+            f"moved DOWN a band")
         for pair, before, after in real:
             print(f"    {label(pair, handles)} {before.band} "
                   f"({before.score:.3f}) → {after.band} ({after.score:.3f})"
@@ -368,7 +414,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ((by_pair[p].score - base_scores[p], p) for p in base_negatives),
             reverse=True,
         )[:5]
-        print("\n  biggest gains among pairs that are NOT in the answer key:")
+        print()
+        say("biggest gains among pairs that are NOT in the answer key:")
         for delta, pair in climbers:
             print(f"    {label(pair, handles)} {base_scores[pair]:.3f} → "
                   f"{by_pair[pair].score:.3f}  ({delta:+.3f})"
@@ -377,19 +424,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         thin = [p for _, p in climbers
                 if any(pid in writeprints.refused for pid in p)]
         if thin:
-            print("\n  Note what is at the top of that list. Those pairs contain the")
-            print("  persona stylometry REFUSED for having too little text, so their")
-            print("  S is unmeasured and renormalisation was carrying them. Giving")
-            print("  them a measured I of 0.96 replaces 'we do not know' with a")
-            print("  number — manufacturing confidence about the one persona the")
-            print("  system was right to say nothing about.")
+            print()
+            say("Note what is at the top of that list. Those pairs contain the "
+                "persona stylometry REFUSED for having too little text, so "
+                "their S is unmeasured and renormalisation was carrying them. "
+                "Giving them a measured I of 0.96 replaces 'we do not know' "
+                "with a number — manufacturing confidence about the one "
+                "persona the system was right to say nothing about.")
 
-        print("\n  Every effect above has one cause. A vendor does not run the")
-        print("  market's web server, so I here is a property of the site: constant")
-        print("  across every alpha×gamma pair, and a measured 0.0 for anyone who")
-        print("  migrated to the forum instead. It lifts pairs that share a landlord")
-        print("  and penalises pairs that do not — which is the opposite of the")
-        print("  question 'are these two the same person'.")
+        print()
+        say("Every effect above has one cause. A vendor does not run the "
+            "market's web server, so I here is a property of the site: "
+            "constant across every alpha×gamma pair, and a measured 0.0 for "
+            "anyone who migrated to the forum instead. It lifts pairs that "
+            "share a landlord and penalises pairs that do not — which is the "
+            "opposite of the question 'are these two the same person'.")
 
     # ── hard negatives ──────────────────────────────────────────────────────
     print(f"\n{RULE}\nHARD NEGATIVES — designed to be refused\n{RULE}")
@@ -408,7 +457,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
               f"{result.band:<9}  ceiling {ceiling}")
         print(f"         H={component(result, 'H')} S={component(result, 'S')} "
               f"B={component(result, 'B')} I={component(result, 'I')}")
-        print(f"         {case['reason']}")
+        # Straight from ground_truth.json, so its length is not ours to choose.
+        say(case["reason"], indent="         ")
 
     # ── refusals ────────────────────────────────────────────────────────────
     print(f"\n{RULE}\nREFUSALS — where the engine declines to score\n{RULE}")
@@ -416,12 +466,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         persona_id = case["persona_id"]
         handle = handles.get(persona_id, "?")
         if persona_id in writeprints.refused:
-            print(f"  persona {persona_id} ({handle}): stylometry returned None — "
-                  f"{writeprints.refused[persona_id]} characters after identifier")
-            print(f"    masking, below the {MIN_STYLOMETRY_CHARS}-character floor. "
-                  f"Every pair it appears in is")
-            print("    scored with S unmeasured rather than with a number "
-                  "from two sentences.")
+            say(f"persona {persona_id} ({handle}): stylometry returned None — "
+                f"{writeprints.refused[persona_id]} characters after "
+                f"identifier masking, below the {MIN_STYLOMETRY_CHARS}-"
+                f"character floor. Every pair it appears in is scored with S "
+                f"unmeasured rather than with a number from two sentences.")
             continue
 
         dropped = case.get("dropped_values", [])
@@ -431,23 +480,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             leaked = [value for value in dropped if value in held]
             state = ("STILL PRESENT — checksum validation failed"
                      if leaked else "dropped, as required")
-            print(f"  persona {persona_id} ({handle}): "
-                  f"{len(dropped)} checksum-failing wallet(s) — {state}")
+            say(f"persona {persona_id} ({handle}): "
+                f"{len(dropped)} checksum-failing wallet(s) — {state}")
             for value in dropped:
                 print(f"      {value}")
 
     # ── verdict ─────────────────────────────────────────────────────────────
     print(f"\n{RULE}")
     if failures:
-        print("FAILED — a designed near-miss was scored above its ceiling:")
+        say("FAILED — a designed near-miss was scored above its ceiling:",
+            indent="")
         for line in failures:
-            print(f"  {line}")
+            say(line)
         print(RULE)
         return 1
 
-    print("All designed hard negatives held below their ceiling.")
-    print("Figures above are on a synthetic corpus with known ground truth; they")
-    print("measure this engine against this answer key, not real-world accuracy.")
+    say("All designed hard negatives held below their ceiling.", indent="")
+    say("Figures above are on a synthetic corpus with known ground truth; they "
+        "measure this engine against this answer key, not real-world accuracy.",
+        indent="")
     print(RULE)
     return 0
 
