@@ -1,198 +1,393 @@
 # Dark Sentinel v2 — Dark Web Threat Actor Attribution Platform
 
-[![Test Suite](https://img.shields.io/badge/pytest-229%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/pytest-230%20passed-brightgreen.svg)](tests/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-blue.svg)](requirements.txt)
-[![Status](https://img.shields.io/badge/status-Phases%200--3%20Operational%20%7C%20Phase%204%20In%20Progress-amber.svg)](docs/BUILD_PLAN.md)
-[![License](https://img.shields.io/badge/use-Authorized%20Investigative%20Only-red.svg)](#legal--operational-disclaimer)
+[![Status](https://img.shields.io/badge/status-Phases%200--3%20complete%20%7C%204--5%20not%20built-orange.svg)](docs/BUILD_PLAN.md)
+[![Use](https://img.shields.io/badge/use-Authorized%20Investigative%20Only-red.svg)](#legal--operational-disclaimer)
 
-> **"Criminals do not get caught because Tor fails; they get caught because human operational security (OPSEC) fails."**
+> Operators are not caught because Tor's cryptography fails. They are caught because the same
+> PGP key, the same wallet, the same sleep schedule and the same misconfigured web server follow
+> them from one identity to the next.
 
-**Dark Sentinel v2** is an intelligence and cyber-forensic platform engineered to deanonymize, profile, and attribute illicit operators across the dark web (Tor Onion Services, I2P, and deep web forums).
+Dark Sentinel v2 links **personas** — one handle on one site — to the **actors** behind them. It
+extracts hard identifiers from scraped prose, builds a stylometric writeprint and a behavioural
+profile for each persona, passively fingerprints hidden services, and scores every persona pair with
+a transparent weighted formula that stores its reasons alongside its number.
 
-Unlike legacy scanners that search for *isolated bad words or content on a single webpage*, Dark Sentinel v2 flips the paradigm to **Actor Attribution**: aggregating fragmented forensic footprints (PGP keys, cryptocurrency wallets, leet-speak aliases, communication handles), fingerprinting hidden service infrastructure for clearnet leak correlation, and linking migrated/rebranded threat actors across forums and marketplaces using multi-signal stylometry and behavioural profiling.
+Successor to Dark Sentinel v1, which scored *content* for threat. This one scores *people* for
+identity.
 
----
-
-## The Operational Threat Landscape
-
-The architectural design of Dark Sentinel v2 directly operationalizes the exact forensic vectors that brought down the most notorious darknet marketplace kingpins in cybercrime history:
-
-* **Silk Road (Ross Ulbricht / "Dread Pirate Roberts")**:
-  * *Alias & Forum Bleed*: Initial darknet market announcements placed under the handle `altoid` requesting inquiries at `rossulbricht@gmail.com`.
-  * *Code & Bug Forensic Trail*: StackOverflow inquiries regarding PHP `curl` over Tor hidden services posted under his true name before being hastily renamed to `frosty`.
-  * *Key Pair Cross-Reference*: PGP public key identities tagged with `frosty@frosty`.
-  * *Infrastructure Misconfiguration*: Apache server status and CAPTCHA server leaks exposing the real clearnet IP in Reykjavik, Iceland.
-* **AlphaBay (Alexandre Cazes / "Alpha02")**:
-  * *Header Leakage*: Server welcome emails containing his personal email `pimp_alex_91@hotmail.com` in raw headers.
-  * *Cross-Platform Re-use*: PGP keys and aliases cross-indexed between darknet vendor posts and French-Canadian webmaster forums.
-  * *Financial Forensics*: High-velocity Bitcoin, Ethereum, and Monero fund consolidation.
-* **Hansa Market, Wall Street Market, & Darkode**:
-  * Infrastructure re-use, shared TLS certificates, Favicon hashes (MurmurHash3), server banners, and identical timezone posting distributions.
-
-Dark Sentinel v2 automates these exact manual intelligence investigative methodologies into an evidence-driven, mathematically transparent attribution pipeline.
+**Everything claimed in this README can be reproduced on a clean checkout in under a minute.**
+Commands are given for each claim. Where something is not built, it says so.
 
 ---
 
-## Core System Architecture
+## What actually runs today
 
-The platform is organized into five decoupled layers:
-
-```
-LAYER 1 — COLLECTION & INGESTION
-  tor_client.py          Tor SOCKS5 proxy pool, session handling, circuit rotation, rate limiter
-  collectors/            Onion forum & marketplace crawlers
-  fixtures/              Deterministic ground-truth seed corpus for verifiable offline evaluation
-
-LAYER 2 — FORENSIC EXTRACTION & NORMALIZATION
-  extract/identifiers.py Multi-regex & checksum validators (BTC Base58/Bech32, ETH EIP-55, XMR, LTC)
-  extract/pgp.py         Armored OpenPGP block extraction, fingerprint computation, UID parsing
-  extract/normalize.py   ObfusLex engine (leet-speak decoding, Unicode NFKD folding, separator strip)
-  extract/gliner_extract.py GLiNER Zero-Shot Named Entity Recognition for PII extraction & redacting
-
-LAYER 3 — RECONNAISSANCE & CLEARNET CORRELATION
-  recon/fingerprint.py   Passive hidden service probing (HTTP headers, ETag, Favicon mmh3, server-status)
-  recon/correlate.py     Cross-correlate onion fingerprints against clearnet observations (Shodan/Censys)
-
-LAYER 4 — MULTI-SIGNAL ATTRIBUTION LINKING
-  link/stylometry.py     Char 3-5 gram TF-IDF, function-word frequency, punctuation, 300-char floor
-  link/behaviour.py      24h UTC posting histogram (timezone inference), trade vocab, Jaccard category
-  link/resolve.py        Pairwise evidence resolution and transitive actor cluster closure
-  link/graph.py          NetworkX graph engine for shortest evidence paths and community detection
-
-LAYER 5 — SCORING, API & TACTICAL UI
-  score/attribution.py   Weighted formula: A = 0.40*H + 0.25*S + 0.20*B + 0.15*I
-  api/                   FastAPI tactical endpoints (/actors, /graph, /timeline, /recon, /export)
-  ui/                    Next.js 14 mission control dashboard (dossiers, force graph, audit log)
-```
-
----
-
-## Attribution Mathematical Formulation
-
-Attribution is probabilistic. Dark Sentinel v2 calculates a unified Attribution Confidence Score $A \in [0.0, 1.0]$:
-
-$$A = w_H \cdot H + w_S \cdot S + w_B \cdot B + w_I \cdot I$$
-
-Where:
-* **$H$ (Hard Identifier Overlap — Weight: 0.40)**:
-  * Same OpenPGP Fingerprint: `1.00`
-  * Same Checksummed Cryptocurrency Wallet: `0.90`
-  * Same Email / Jabber (XMPP) / Session ID: `0.85`
-  * Same Mirror Onion URL: `0.80`
-  * Exact Handle Match: `0.60`
-  * Normalized Leet-Speak Collision: `0.45`
-* **$S$ (Stylometric Similarity — Weight: 0.20 – 0.25)**:
-  * Cosine similarity between 5000-dimensional writeprint vectors (character 3–5 grams, function word frequencies, punctuation distribution, capitalization ratio, emoji patterns, sentence/word length).
-  * **Hard Forensic Floor**: Minimum **300 characters** of clean prose required. Below this floor, stylometry strictly returns `None` and is omitted from the score.
-* **$B$ (Behavioural Similarity — Weight: 0.20 – 0.25)**:
-  * 24-bucket UTC posting-hour histogram (timezone fingerprinting), day-of-week cadence, trade vocabulary overlap, and illicit product category Jaccard similarity.
-* **$I$ (Infrastructure Overlap — Weight: 0.15)**:
-  * TLS certificate serials, Subject Alternative Names (SANs) leaking clearnet hostnames, Shodan-compatible Favicon MurmurHash3 hashes, Apache/Nginx server banners, and ETags.
-
-### Confidence Bands
-| Band | Confidence Score | Investigative Meaning |
+| Phase | Scope | State |
 |---|---|---|
-| **CONFIRMED** | $A \ge 0.85$ | High-probability attribution with corroborating hard cryptographic or multi-vector evidence. |
-| **PROBABLE** | $0.65 \le A < 0.85$ | Strong behavioral, stylometric, and infrastructure overlap; actionable investigative lead. |
-| **POSSIBLE** | $0.45 \le A < 0.65$ | Plausible link; warrants analyst verification and subpoena/warrant corroboration. |
-| **WEAK** | $A < 0.45$ | Below actionable threshold; dismissed to prevent false positive link pollution. |
+| 0 | Schema, ground-truth fixture corpus | **Complete** |
+| 1 | Identifier extraction, normalization, PGP, ingest | **Complete** |
+| 2 | Stylometry, behaviour, resolution, graph, scoring | **Complete** |
+| 3 | Passive recon, clearnet correlation, the I term | **Complete** |
+| 4 | FastAPI endpoints, Next.js attribution console | **Not built** — no `api/` directory exists |
+| 5 | Autonomous scheduler, PDF case report | **Not built** — no `export/` directory exists |
 
-### Rigorous Evidentiary Safeguards
-1. **Wallet Validation Enforcement**: Every Bitcoin address (Base58Check and Bech32), Ethereum address (EIP-55 checksum), and Monero address is mathematically verified. Invalid checksums are dropped immediately and logged to prevent phantom link graph contamination.
-2. **Transparent Evidence Trails**: A bare number is legally and forensically useless. Every link record stores an immutable JSONB array of explicit evidence citations (`"same PGP fingerprint A4F57A..."`, `"84% posting-hour overlap"`, `"writeprint cosine 0.81"`).
-3. **Renormalization of Unmeasured Signals**: If a signal is legitimately unmeasured (e.g. text under 300 characters, or lack of direct infrastructure control), its weight is redistributed proportionately rather than treated as a punitive zero.
+`ui/` contains the **v1** Next.js app. It is not wired to anything in this repo yet.
 
----
-
-## Current Project Status & Gap Analysis
-
-```
-[Phase 0] Database Schema & Ground Truth Fixtures   --> [COMPLETED] (schema_v2.sql, db.py, fixtures)
-[Phase 1] Forensic Extraction & Normalization       --> [COMPLETED] (extract/ - 100% prose recall)
-[Phase 2] Stylometric, Behavioural & Graph Engine   --> [COMPLETED] (link/, score/ - 1.000 Precision)
-[Phase 3] Passive Recon & Clearnet Correlation     --> [COMPLETED] (recon/ - Shodan/ETag/Favicon)
-[Phase 4] FastAPI Endpoints & Next.js Tactical UI   --> [IN PROGRESS / NEEDED]
-[Phase 5] Autonomous Mode & PDF Court Dossier       --> [ROADMAP / NEEDED]
-```
-
-### Verified Test Suite
-The backend core has been extensively tested with **229 unit and integration tests passing**:
-* `tests/test_attribution.py`: Isolated formula bounds, weight presets, edge-case renormalizations.
-* `tests/test_identifiers.py`: Checksummed wallet verification, PGP armor parsing, PII extraction.
-* `tests/test_fixtures.py`: Stylometric separation margins on ground-truth actor migrations.
-* `tests/test_infra.py`: Persona-level vs. site-level infrastructure isolation.
-* `tests/test_linking.py`: Pairwise resolution, transitive closures, and hard negative refusals.
-* `tests/test_recon.py`: Passive HTTP fingerprinting, MurmurHash3 hashing, and Shodan correlation.
+There are no live collectors. `legacy/darksearch.py` holds v1's working Tor crawler and
+[recon/tor.py](recon/tor.py) exposes its session builder, but no `collectors/` package has been
+written — live acquisition today means passing an onion to `recon/fingerprint.py` yourself.
 
 ---
 
-## What Is Needed to Complete the Project
+## The attribution formula
 
-To elevate Dark Sentinel v2 from a battle-tested algorithmic engine into a production-grade operations center, the following components are prioritized:
+```
+A = w_H·H + w_S·S + w_B·B + w_I·I     →  0.0 .. 1.0
 
-### 1. Phase 4: Tactical API Endpoints (`api/`)
-Build out FastAPI routers to bridge the data model to the frontend:
-* `GET /actors`: Paginated list of resolved threat actors filtered by category, confidence band, and first/last seen timestamps.
-* `GET /actors/{id}`: In-depth actor profile dossier (all grouped personas, verified cryptocurrency wallets, PGP fingerprints, posting history, and migration timeline).
-* `GET /graph`: NetworkX node-link payload for interactive D3 / Cytoscape force-directed graph rendering with confidence score filtering.
-* `GET /timeline`: Temporal activity distribution across sources for pattern-of-life analysis.
-* `GET /recon/{onion}`: Infrastructure fingerprinting report, misconfiguration flags, and clearnet correlation candidates.
-* `POST /scan`: Asynchronous scan initiation (fixtures or live Tor targets) returning job tracking IDs.
-* `GET /export/{fmt}`: Instant export of query results in CSV, JSON, and forensic briefing PDF.
+CONFIRMED ≥ 0.85 | PROBABLE 0.65–0.85 | POSSIBLE 0.45–0.65 | WEAK < 0.45
+```
 
-### 2. Phase 4: Tactical Frontend UI (`ui/app`)
-Re-skin and replace the legacy v1 page-centric components with the Actor Attribution suite:
-* **Attribution Matrix (`/actors`)**: TanStack data table with quick filtering, confidence band badges, and wallet count chips.
-* **Actor Dossier (`/actors/[id]`)**: Detailed profile showcasing cryptographic proofs, leet-speak alias history, stylometric writing samples, and behavioural posting clock.
-* **Interactive Threat Graph (`/graph`)**: Force-directed link graph showing persona clusters, edge thickness reflecting score $A$, and slide-out evidence drawer upon clicking any edge.
-* **Recon & Misconfig Viewer (`/recon`)**: Visual representation of exposed `/server-status` pages, SSL cert SAN clearnet leaks, and Shodan pivot matches.
+Two weight presets live in [score/attribution.py](score/attribution.py); `measured` is the default:
 
-### 3. Phase 5: Autonomous Daemon & Audit Logging
-* **Continuous Monitoring Loop**: APScheduler daemon periodically scanning monitored onions, running incremental extractions, and updating the link graph.
-* **Cryptographic Chain of Custody**: Every scan action records operator identity, UTC timestamp, and SHA-256 hash of the parameters in `scans` table.
-* **Forensic PDF Dossier Generator (`export/report.py`)**: Court-admissible intelligence summary complete with methodology disclaimer, evidence matrix, and signature block.
+| preset | H | S | B | I |
+|---|---|---|---|---|
+| `claude_md` | 0.40 | 0.25 | 0.20 | 0.15 |
+| `measured` *(default)* | 0.40 | 0.20 | 0.25 | 0.15 |
+
+**H — hard identifier overlap.** Independent matches combine by noisy-OR, `H = 1 − Π(1 − mₖ)`:
+
+| match | weight |
+|---|---|
+| OpenPGP fingerprint | 1.00 |
+| Checksum-valid wallet (BTC / ETH / XMR / LTC) | 0.90 |
+| Email / Jabber / Session id | 0.85 |
+| Mirror onion | 0.80 |
+| Exact handle reuse | 0.60 |
+| Normalized handle collision (`Dr3ad_P1rat3` → `dreadpirate`) | 0.45 |
+
+**S — stylometric cosine.** Character 3–5 gram TF-IDF (`max_features=5000`) plus function-word
+frequencies, punctuation ratios, capitalisation, type-token ratio and sentence/word length.
+Identifiers are masked out first, so a shared wallet cannot masquerade as a shared writing habit.
+**Below 300 characters of masked prose, S returns `None` and the pair is not scored on style.**
+
+**B — behavioural.** Posting-hour histogram (0.70, circularly smoothed so 23:00 and 00:00 are
+adjacent), category Jaccard (0.20), trade vocabulary (0.05), day-of-week (0.05). The two demoted
+sub-signals are weighted so they cannot move a band; [link/behaviour.py](link/behaviour.py) records
+the measurements behind every weight, including why trade vocabulary ranks *backwards* on this
+corpus.
+
+**I — infrastructure overlap.** See below. On this corpus it is unmeasured, deliberately.
+
+**Unmeasured is not zero.** When a component cannot be assessed, its weight is redistributed over
+the measured ones rather than counted as 0.0, and the link's evidence list says which component was
+skipped and why.
 
 ---
 
-## Quickstart Guide
+## Two findings worth leading with
 
-### Prerequisites
-* Python 3.11+
-* PostgreSQL 15+ (or Docker)
-* Node.js 18+ (for UI)
-* Tor daemon listening on `127.0.0.1:9050` (optional, only for live scanning)
+### 1. The I term is unmeasured on all 190 pairs, and that is the correct answer
 
-### 1. Environment Configuration
+`I` measures infrastructure the **personas control**. Every other term measures something the two
+personas produced themselves. A vendor renting a stall on market_alpha does not run market_alpha's
+nginx — the favicon, ETag, banner and certificate in `infra_findings` belong to the *marketplace
+operator*.
+
+Recon works and produced findings for all three sources. But nothing in this corpus is
+persona-scoped: all 20 profile URLs resolve to the 3 source onions, `infra_findings.json` is keyed
+by `source_id`, and neither infra table has a `persona_id` column. So
+[link/infra.py](link/infra.py) **refuses by rule, not for want of data** — hand it a corpus where
+vendors run their own mirrors and it measures. `tests/test_infra.py` contains exactly that case,
+passing.
+
+### 2. The tempting alternative was measured, not argued away
+
+Broadcasting a market's fingerprint to its vendors is the obvious shortcut. It is implemented, as an
+opt-in evaluation mode, so its cost is a number rather than an opinion:
+
 ```bash
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials
+python scripts/evaluate.py --infra site-broadcast
 ```
 
-### 2. Database Initialization
-```bash
-# Apply migrations (idempotent and safe)
-psql -U postgres -d darksentinel -f schema_v2.sql
+| | `--infra off` (default) | `--infra site-broadcast` |
+|---|---|---|
+| precision, all bands | 1.000 | 1.000 |
+| recall @ CONFIRMED | 6/8 | **4/8** |
+| separation margin | **+0.508** | **+0.287** |
 
-# Seed demo corpus fixtures
-python scripts/load_fixtures.py --reset
+It gives all 40 alpha×gamma pairs an identical value — the same number for the 4 real migrations and
+the 36 that are not — so it cannot rank anything. It demotes two true positives (1~9 and 2~10 moved
+to forum_beta, which shares no infrastructure) and its largest gains land on pairs containing
+persona 7, the persona stylometry *refuses* for having too little text. A signal that manufactures
+confidence about the one persona the system was right to say nothing about is not a signal.
+
+It is never the default, and `evaluate.py` labels it as unsound every time it runs.
+
+---
+
+## Evaluation against a known answer key
+
+`fixtures/ground_truth.json` declares which persona is really which actor, so the linking engine can
+be scored rather than demonstrated. Verbatim output of `python scripts/evaluate.py`:
+
+```
+──────────────────────────────────────────────────────────────────────────────
+Dark Sentinel v2 — linking engine evaluation
+on a synthetic corpus with known ground truth (fixtures/ground_truth.json)
+──────────────────────────────────────────────────────────────────────────────
+  corpus    20 personas, 190 pairs, 14 actors, 8 expected positive pairs
+  source    fixtures
+  weights   preset measured: H 0.40 S 0.20 B 0.25 I 0.15
+  renorm    unmeasured components renormalised: True
+  infra     mode off: 0/20 personas control a fingerprinted host
+  Recon ran and produced findings for all 3 sources, but they are site-level:
+  they fingerprint the marketplace, not the vendor. No persona here controls a
+  host of their own, so I is unmeasured on every pair and its 0.15 weight is
+  redistributed. See link/infra.py.
+
+──────────────────────────────────────────────────────────────────────────────
+PAIRWISE — direct evidence only (method='pairwise')
+──────────────────────────────────────────────────────────────────────────────
+  threshold                  P       R      F1    TP  FP  FN
+  >=CONFIRMED (0.85)     1.000   0.750   0.857     6   0   2
+  >=PROBABLE (0.65)      1.000   0.750   0.857     6   0   2
+  >=POSSIBLE (0.45)      1.000   0.750   0.857     6   0   2
+
+  reached at PROBABLE or better — 6/8
+     1~16    Dr3adPirat3 ~ BlackSailsRX   0.925 CONFIRMED  H=1.000 S=0.857 B=0.858 I=  --
+     3~18     Vect0rShop ~ V3ct0r_Supply  0.909 CONFIRMED  H=1.000 S=0.870 B=0.795 I=  --
+     4~19     silk_hands ~ SilkHands      0.884 CONFIRMED  H=0.945 S=0.841 B=0.819 I=  --
+     1~9     Dr3adPirat3 ~ Dread_P1rate   0.876 CONFIRMED  H=0.917 S=0.762 B=0.902 I=  --
+     2~17    NordicPharm ~ NordPharmaEU   0.862 CONFIRMED  H=0.900 S=0.777 B=0.870 I=  --
+     2~10    NordicPharm ~ nordic_pharm   0.853 CONFIRMED  H=0.917 S=0.721 B=0.855 I=  --
+
+  not reached — 2/8
+     9~16   Dread_P1rate ~ BlackSailsRX   0.429 WEAK       H=0.000 S=0.761 B=0.850 I=  --
+    10~17   nordic_pharm ~ NordPharmaEU   0.415 WEAK       H=0.000 S=0.713 B=0.841 I=  --
+
+  Both share no identifier at all, so H = 0 and only S and B remain. The
+  answer key says as much itself: "9<->16 share nothing hard and must be
+  resolved through the cluster". Pairwise scoring cannot reach these two and
+  does not pretend to — see the closure block below.
+
+  separation
+    weakest accepted positive   2~10    NordicPharm ~ nordic_pharm   0.853
+    strongest rejected pair    14~15     graypigeon ~ plainbagel     0.345
+    margin                     +0.508
+
+──────────────────────────────────────────────────────────────────────────────
+HARD NEGATIVES — designed to be refused
+──────────────────────────────────────────────────────────────────────────────
+  [PASS]  2~20    NordicPharm ~ AtlasMeds      0.242 WEAK       ceiling POSSIBLE
+         H=0.000 S=0.633 B=0.316 I=  --
+         NordicPharm and AtlasMeds share a formal register, a greeting and a
+         category. AtlasMeds is a genuinely new vendor: different
+         contractions, punctuation, misspellings and posting hours.
+  [PASS]  4~15     silk_hands ~ plainbagel     0.228 WEAK       ceiling POSSIBLE
+         H=0.000 S=0.491 B=0.381 I=  --
+         silk_hands and plainbagel share a sentence-length band and two
+         discourse markers but no identifier, no misspellings and no posting
+         hours. Stylometry should rate them highly; the full formula must not
+         confirm.
+
+──────────────────────────────────────────────────────────────────────────────
+REFUSALS — where the engine declines to score
+──────────────────────────────────────────────────────────────────────────────
+  persona 7 (paperghost): stylometry returned None — 152 characters after
+  identifier masking, below the 300-character floor. Every pair it appears in
+  is scored with S unmeasured rather than with a number from two sentences.
+  persona 8 (CryoVault): 2 checksum-failing wallet(s) — dropped, as required
+      0x4daF2Cc326158a523D9B67fA72Cf616343455679
+      1K1gaku9wLHA1C4JYjQL2z1Nz9HovFbHSE
+
+──────────────────────────────────────────────────────────────────────────────
+All designed hard negatives held below their ceiling.
+Figures above are on a synthetic corpus with known ground truth; they measure
+this engine against this answer key, not real-world accuracy.
+──────────────────────────────────────────────────────────────────────────────
 ```
 
-### 3. Run Forensic Ingestion & Evaluation
+**Recall is reported as 6/8, not 8/8, on purpose.** Pairs 9~16 and 10~17 share no identifier at all;
+the answer key says they must be resolved through the cluster. Adding `--transitive` runs the
+closure pass as a **separate** method and reaches them — inferred links are decayed, band-capped and
+reported apart from direct evidence:
+
 ```bash
-# Ingest personas, identifiers, and posts from fixtures
+python scripts/evaluate.py --transitive
+```
+
+```
+  derived 2 link(s), each decayed and band-capped:
+     9~16   Dread_P1rate ~ BlackSailsRX   0.657 PROBABLE   H=  --   S=  --   B=  --   I=  --     [correct]
+        via persona 1 (Dr3adPirat3) — 9~1 CONFIRMED 0.876; 1~16 CONFIRMED 0.925
+    10~17   nordic_pharm ~ NordPharmaEU   0.640 POSSIBLE   H=  --   S=  --   B=  --   I=  --     [correct]
+        via persona 2 (NordicPharm) — 10~2 CONFIRMED 0.853; 2~17 CONFIRMED 0.862
+
+  pairwise + closure, scored together:
+  threshold                  P       R      F1    TP  FP  FN
+  >=CONFIRMED (0.85)     1.000   0.750   0.857     6   0   2
+  >=PROBABLE (0.65)      1.000   0.875   0.933     7   0   1
+  >=POSSIBLE (0.45)      1.000   1.000   1.000     8   0   0
+
+  closure added 2 link(s), 0 of them wrong
+```
+
+---
+
+## Passive reconnaissance
+
+Six GETs of conventional, publicly-served paths — `/`, `/favicon.ico`, `/robots.txt`,
+`/sitemap.xml`, `/server-status`, `/server-info`. That list is the entire request surface. No POST,
+no auth header, no credential, no path enumeration beyond those six names; `tests/test_recon.py`
+asserts `PROBE_PATHS` against that rule rather than trusting the claim. Rate limited to 1 request
+per 2 seconds per host with a global concurrency cap.
+
+```bash
+python -m recon.fingerprint --source fixtures --dry-run
+python -m recon.correlate  --source fixtures --dry-run
+```
+
+Correlation scores onion↔clearnet candidates and keeps the weak signal weak:
+
+| match | score |
+|---|---|
+| TLS certificate serial | 1.00 |
+| TLS SAN naming the clearnet host | 0.95 |
+| Favicon mmh3 (Shodan convention) | 0.80 |
+| ETag | 0.70 |
+| Server banner **and** matching header order | 0.40 |
+
+On the fixture corpus that recovers every planted pivot — market_gamma ↔ `gamma-mirror.hostvault.net`
+at 1.000 on cert serial and SAN, market_alpha ↔ `cdn-static-eu.hostvault.net` at 0.964 on favicon,
+ETag and banner — while unrelated hosts running the same nginx build stay at 0.40.
+
+Clearnet observations arrive behind a provider interface. The fixtures provider is complete.
+**The Shodan provider is implemented against the documented API but has never been run against a
+live key in this repository** — it says so at runtime when selected, and writes the same caveat into
+the evidence of every row it produces.
+
+---
+
+## Quickstart
+
+### Offline — no database, no Tor, no network
+
+```bash
+pip install -r requirements.txt
+
+python -m pytest -q                                      # 230 passed
+python scripts/evaluate.py                               # the table above
+python scripts/evaluate.py --transitive                  # closure pass
+python scripts/evaluate.py --infra site-broadcast        # the counter-evidence
+python -m recon.fingerprint --source fixtures --dry-run
+python -m recon.correlate  --source fixtures --dry-run
+```
+
+`--source fixtures` is deterministic and needs no network at all. With Postgres down,
+`pytest` reports 229 passed and 1 skipped — one Phase 1 test needs a database.
+
+### With PostgreSQL
+
+```bash
+cp .env.example .env            # set PG_* / PG_URL
+
+python scripts/apply_schema.py            # re-runnable; --check reports drift
+python scripts/load_fixtures.py           # seed the corpus (--reset to truncate)
 python scripts/ingest.py --source fixtures
-
-# Run the algorithmic evaluation against ground truth
-python scripts/evaluate.py
+python -m link.resolve --source db        # writes links + writeprints
+python -m recon.fingerprint --source fixtures
+python -m recon.correlate  --source db
+python scripts/evaluate.py --source db    # same numbers as fixtures mode
 ```
 
-### 4. Run Unit Tests
+`docker-compose.yml` provides PostgreSQL 16 (`docker compose up -d db`). The tor, api and ui
+services in that file are commented out — they are Phase 4/5 and not yet real.
+
+`scripts/apply_schema.py` exists because `psql` is frequently absent when Postgres runs in a
+container. If you have `psql`, `psql $PG_URL -f schema_v2.sql` is equivalent.
+
+### Live Tor
+
+Requires a Tor daemon on `127.0.0.1:9050`. `TOR_SOCKS` from `.env` is bridged to the variable the
+v1 crawler reads.
+
 ```bash
-pytest -v
+python -m recon.fingerprint --source live --onion http://<address>.onion --dry-run
 ```
+
+It probes Tor first and exits with a message if no proxy answers. Note this is **proxy-pool
+round-robin, not circuit rotation** — `stem` is pinned in `requirements.txt` but imported nowhere,
+and there is no ControlPort client, so two probes seconds apart may share a circuit.
+
+---
+
+## The fixture corpus
+
+Synthetic, deterministic, and built so the engine can be scored rather than demonstrated.
+
+| source | personas | posts |
+|---|---|---|
+| `market_alpha` | 8 | 79 |
+| `forum_beta` | 7 | 70 |
+| `market_gamma` | 5 | 51 |
+| **total** | **20** | **200** |
+
+14 actors, 8 expected positive pairs, 2 designed hard negatives, 4 armoured PGP key blocks,
+3 recon findings, 10 Shodan-shaped clearnet observations.
+
+Four market_alpha vendors reappear in market_gamma under new handles sharing a PGP key or wallet and
+a consistent writing style. Two pairs are built to *look* linkable and must be refused. One persona
+is below the stylometry floor; one carries two deliberately corrupted wallets.
+
+`docs/BUILD_PLAN.md` records the corpus's known gaps — including eight declared identifiers that
+appear in no prose and are therefore unreachable by any extractor. They are documented rather than
+quietly patched, and `scripts/ingest.py --dry-run` prints them.
+
+---
+
+## Layout
+
+```
+db.py              SQLAlchemy 2.x models, engine, session factory, band thresholds
+schema_v2.sql      re-runnable DDL — 11 tables, 1 view, indexes, audit trail
+extract/           identifiers, normalize (leet decode), pgp, gliner_extract
+recon/             fingerprint, correlate, tor (shim onto legacy/darksearch.py)
+link/              stylometry, behaviour, infra, resolve, graph
+score/             attribution — the formula, isolated and unit-tested
+fixtures/          synthetic corpus + ground_truth.json
+scripts/           apply_schema, load_fixtures, ingest, evaluate, generators
+tests/             7 pytest modules, 230 tests
+legacy/            v1 code kept for reuse — darksearch, llm, obfuslex, alert_api
+ui/                v1 Next.js app, not yet wired to this backend
+```
+
+## Test suite
+
+`python -m pytest -q` → **230 passed**.
+
+| module | covers |
+|---|---|
+| `test_attribution.py` | formula bounds, presets, renormalisation, noisy-OR, transitive decay |
+| `test_identifiers.py` | wallet checksums, PGP armor parsing, false-positive rejection, recall |
+| `test_fixtures.py` | corpus integrity, stylometric separation, recon fixtures |
+| `test_linking.py` | pairwise resolution, closure, hard negatives, refusals |
+| `test_infra.py` | persona-controlled vs site-broadcast, and why the latter fails |
+| `test_recon.py` | passive-only probe surface, rate limiter, mmh3, misconfig rubric |
+| `test_correlate.py` | correlation rubric, planted pivots, noise suppression, providers |
 
 ---
 
 ## Legal & Operational Disclaimer
 
-> **IMPORTANT**: Dark Sentinel v2 is designed exclusively for authorized law enforcement, national security, academic threat research, and defensive cyber-intelligence operations. All reconnaissance modules operate strictly **passively** (analyzing publicly served headers, certificates, and content). The system does not conduct active exploitation, authentication bypasses, denial-of-service, or unauthorized access. All outputs represent probabilistic investigative leads requiring human corroboration, never definitive legal conclusions.
+> Dark Sentinel v2 is for authorized law enforcement, national security, academic threat research
+> and defensive intelligence work only. All reconnaissance is strictly **passive** — it reads what a
+> server already publishes to any visitor. There is no exploitation, authentication bypass, brute
+> force, credential use or denial of service anywhere in it, and the probe surface is asserted in
+> the test suite rather than merely promised.
+>
+> Every output is a probabilistic investigative **lead requiring human corroboration**, never a
+> conclusion. Every scan writes an audit row with operator identity and a SHA-256 of the action.
+> The evaluation figures above are measured against a synthetic answer key; they describe this
+> engine on this corpus, not real-world accuracy.
