@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS actors (
     category       TEXT,                   -- drugs | arms | data | hacking | laundering | other
     first_seen     TIMESTAMP,
     last_seen      TIMESTAMP,
-    max_confidence FLOAT DEFAULT 0,        -- strongest link inside the cluster
+    -- The WEAKEST link holding the cluster together (a cluster is a chain), and
+    -- NULL for a single-persona actor, which was never merged with anything. No
+    -- default: 0 would read as "we compared it and were unconvinced".
+    max_confidence FLOAT,
     notes          TEXT,
     created_at     TIMESTAMP DEFAULT NOW(),
     updated_at     TIMESTAMP DEFAULT NOW()
@@ -227,7 +230,11 @@ ALTER TABLE actors ADD COLUMN IF NOT EXISTS label          TEXT;
 ALTER TABLE actors ADD COLUMN IF NOT EXISTS category       TEXT;
 ALTER TABLE actors ADD COLUMN IF NOT EXISTS first_seen     TIMESTAMP;
 ALTER TABLE actors ADD COLUMN IF NOT EXISTS last_seen      TIMESTAMP;
-ALTER TABLE actors ADD COLUMN IF NOT EXISTS max_confidence FLOAT DEFAULT 0;
+ALTER TABLE actors ADD COLUMN IF NOT EXISTS max_confidence FLOAT;
+-- Created DEFAULT 0 by earlier revisions, which turned a never-merged
+-- singleton into one we had compared and scored zero. Dropping a default
+-- that is not there is a no-op, so this stays re-runnable.
+ALTER TABLE actors ALTER COLUMN max_confidence DROP DEFAULT;
 ALTER TABLE actors ADD COLUMN IF NOT EXISTS notes          TEXT;
 ALTER TABLE actors ADD COLUMN IF NOT EXISTS created_at     TIMESTAMP DEFAULT NOW();
 ALTER TABLE actors ADD COLUMN IF NOT EXISTS updated_at     TIMESTAMP DEFAULT NOW();

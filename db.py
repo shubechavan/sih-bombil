@@ -255,7 +255,9 @@ class Actor(Base):
     category: Mapped[Optional[str]] = mapped_column(Text)
     first_seen: Mapped[Optional[datetime]] = mapped_column(DateTime)
     last_seen: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    max_confidence: Mapped[Optional[float]] = mapped_column(Float, default=0)
+    #: The weakest link holding the cluster together, and NULL for a
+    #: single-persona actor that was never merged. No default — see Link.
+    max_confidence: Mapped[Optional[float]] = mapped_column(Float)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)

@@ -266,14 +266,22 @@ def store_actors(session, clusters: ClusterSet) -> int:
     A re-run at a different threshold must not leave two partitions mixed in one
     table, so every actor row is cleared first and every persona repointed. The
     personas themselves are never deleted — only their assignment changes.
+
+    The id sequence is reset after the delete so a given partition always yields
+    the same ids. Without that, every re-run pushes ids higher and `/actors/{id}`
+    URLs rot between runs — which would defeat the reason this table exists
+    rather than clusters being recomputed per request.
     """
-    from sqlalchemy import delete, update  # noqa: PLC0415
+    from sqlalchemy import delete, text, update  # noqa: PLC0415
 
     from db import Actor, Persona, utcnow  # noqa: PLC0415
 
     session.execute(update(Persona).values(actor_id=None))
     session.execute(delete(Actor))
     session.flush()
+    session.execute(text(
+        "SELECT setval(pg_get_serial_sequence('actors', 'id'), 1, false)"
+    ))
 
     written = 0
     for cluster in clusters.actors:
