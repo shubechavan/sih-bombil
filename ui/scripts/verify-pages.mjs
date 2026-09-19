@@ -97,10 +97,18 @@ try {
 	check("the floor is named", has(refused, "300-character floor"));
 	check("the character count is shown", has(refused, "152"));
 
-	console.log("\ndeclared-only identifier is flagged");
+	// load_fixtures.py no longer seeds identifiers that appear in no bio, post or
+	// key block, so the corpus holds only what the extractor can derive. The
+	// "declared only" tag stays in the UI for corpora that do carry such values;
+	// here there must be nothing left for it to mark.
+	console.log("\nno unreachable identifier reaches the screen");
 	const vectorPage = await textOf(page, `${BASE}/actors/${vector.id}`);
-	check("mirror onion cited", has(vectorPage, "same mirror onion"));
-	check("and marked as not found in any text", has(vectorPage, "declared only"));
+	check(
+		"3~18 is evidenced on PGP, not the mirror onion",
+		has(vectorPage, "same PGP fingerprint") && !has(vectorPage, "same mirror onion"),
+	);
+	check("nothing is tagged declared-only any more", !has(vectorPage, "declared only"));
+	check("and 3~18 is still CONFIRMED", has(vectorPage, "confirmed"));
 
 	console.log("\ngraph");
 	const graph = await textOf(page, `${BASE}/graph`);

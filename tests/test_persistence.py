@@ -196,3 +196,61 @@ def test_a_scored_persona_carries_no_refusal_reason(db):
             "WHERE vector IS NOT NULL AND refused_reason IS NOT NULL"
         )).all()
     assert not leaked, f"scored personas carrying a refusal reason: {leaked}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The corpus contains only what the pipeline can derive
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_no_identifier_was_seeded_that_no_extractor_could_find(db):
+    """`personas.json` declares what is true; the pipeline knows what is written.
+
+    scripts/load_fixtures.py used to seed both, so `--source db` could cite
+    evidence — "3~18 share a mirror onion" — that `--source fixtures` never
+    showed and no extractor could produce. Every identifier in the database
+    must now carry meta.source = "ingest", meaning Phase 1 found it in prose.
+    """
+    from sqlalchemy import text
+
+    with db() as session:
+        stray = session.execute(text(
+            "SELECT type, value FROM identifiers "
+            "WHERE meta->>'source' IS DISTINCT FROM 'ingest' ORDER BY type"
+        )).all()
+    assert not stray, (
+        "identifiers present in the database that the extractor never derived: "
+        + ", ".join(f"{t} {v[:24]}" for t, v in stray)
+    )
+
+
+def test_the_unreachable_identifiers_are_absent_by_value(db):
+    """The six recorded in docs/BUILD_PLAN.md, named so a reseed cannot restore
+    them quietly."""
+    from sqlalchemy import text
+
+    unreachable = [
+        "x6bdjztamavehh2lehtkyyf2wvht2omaynjh2xawjjhi7ny6hhjuspyd.onion",
+        "@dread_fam",
+        "@nordic_supply",
+        "0x6e05b5893F34dd1077cae73F8BB39357759FbE4F",
+        "bc1q3wk97fe0ce3w6p3xxsumxkj57ylhy7rxyrva5y",
+    ]
+    with db() as session:
+        found = session.execute(
+            text("SELECT value FROM identifiers WHERE value = ANY(:values)"),
+            {"values": unreachable},
+        ).all()
+    assert not found, f"unreachable identifier(s) back in the database: {found}"
+
+
+def test_dropping_them_left_the_strong_pair_confirmed(links):
+    """3~18 was the only shared one, and it saturates H on PGP without it."""
+    pair = next((r for r in links if r["pair"] == (3, 18)), None)
+    if pair is None:
+        pytest.skip("3~18 not stored — run `python -m link.resolve --source db`")
+    assert pair["h"] == 1.0
+    details = [e.get("detail", "") for e in pair["evidence"]]
+    assert any("PGP fingerprint" in d for d in details)
+    assert not any("mirror onion" in d for d in details), (
+        "the mirror onion is back in the evidence for 3~18"
+    )

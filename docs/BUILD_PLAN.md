@@ -204,10 +204,35 @@ that appear in prose, 36/44 (81.8%) of everything declared.** `scripts/ingest.py
 `pytest tests/test_identifiers.py` both print the list above, and `tests/test_identifiers.py`
 asserts the set has not changed.
 
-Not being fixed now. The fix is a Phase 0 change — regenerate the corpus so those six values appear
-in a bio or a post — and it would perturb the stylometry corpus that `tests/test_fixtures.py`
-already holds to a margin. This note exists so the number is explainable, not so it gets quietly
-patched.
+The corpus itself is not being regenerated. Making those six values appear in prose would perturb
+the stylometry corpus that `tests/test_fixtures.py` holds to a margin, and the recall denominators
+above stay as they are so the number remains explainable.
+
+**What was fixed (Phase 4): the database no longer carries them.** `scripts/load_fixtures.py` used
+to seed every declared identifier, while `scripts/ingest.py` wrote only what the extractor found.
+The two disagreed, and the disagreement was visible: `--source db` could show *"3↔18 share a mirror
+onion"* as evidence, which `--source fixtures` never showed and which no extractor in this system
+could produce. `load_identifiers` now skips any value absent from the persona's bio, posts and key
+blocks, so both source modes agree on the evidence as well as on the score.
+
+Dropping them was measured before it was done, and costs nothing:
+
+| | before | after |
+|---|---|---|
+| precision, all bands | 1.000 | 1.000 |
+| recall @ CONFIRMED / PROBABLE | 6/8 | 6/8 |
+| separation margin | +0.508 | +0.508 |
+| hard negatives | both WEAK | both WEAK |
+| pairs whose score moved | — | **0 of 190** |
+
+Five of the six sit on a single persona, so they could never contribute to a pair's H. The sixth —
+the mirror onion — is shared by 3 and 18, but that pair already carries two PGP fingerprints at
+weight 1.00, and a 1.00 term saturates the noisy-OR: `H = 1 − Π(1 − wᵢ)` is 1.0 with or without an
+0.80 alongside it. 3↔18 stays CONFIRMED at 0.909 on the fingerprints alone.
+
+`tests/test_persistence.py` pins it: no identifier may carry a `meta.source` other than `"ingest"`,
+the five values are named so a reseed cannot restore them quietly, and 3↔18 must still reach H = 1.0
+without citing the mirror.
 
 ### Two PGP fingerprints where the corpus intends one (Phase 2 artifact)
 

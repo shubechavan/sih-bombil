@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -99,7 +100,43 @@ def read_corpus() -> dict:
         "personas": personas,
         "posts": posts,
         "infra": _read(FIXTURES / "infra_findings.json"),
+        "key_blocks": _read(FIXTURES / "pgp_blocks.json"),
     }
+
+
+def persona_texts(corpus: dict) -> dict[int, str]:
+    """Everything a reader of this persona could actually see.
+
+    Bio, every post title and body, and any armoured key block they published.
+    This is the same surface scripts/ingest.py runs the extractor over, so an
+    identifier absent from it is one no extractor in the pipeline could ever
+    produce.
+    """
+    texts: dict[int, list[str]] = {
+        persona["id"]: [persona.get("bio") or ""] for persona in corpus["personas"]
+    }
+    for post in corpus["posts"]:
+        bucket = texts.setdefault(post["persona_id"], [])
+        bucket.append(post.get("title") or "")
+        bucket.append(post.get("body") or "")
+    for block in corpus.get("key_blocks") or []:
+        texts.setdefault(block["persona_id"], []).append(block.get("armored") or "")
+    return {pid: "\n".join(parts) for pid, parts in texts.items()}
+
+
+def appears_in_text(value: str, text: str) -> bool:
+    """Is this identifier actually written down where the pipeline can read it?
+
+    Case-insensitive, and compared with whitespace removed as well, because a
+    PGP fingerprint is often printed in spaced groups of four.
+    """
+    lowered, needle = text.lower(), value.lower()
+    if needle in lowered:
+        return True
+    return _SPACE.sub("", needle) in _SPACE.sub("", lowered)
+
+
+_SPACE = re.compile(r"\s+")
 
 
 def payload_hash(corpus: dict) -> str:
@@ -192,11 +229,24 @@ def load_personas(session, rows: list[dict], post_counts: dict[int, int]) -> int
     return len(rows)
 
 
-def load_identifiers(session, personas: list[dict]) -> tuple[int, int, list[str]]:
+def load_identifiers(session, personas: list[dict],
+                     texts: dict[int, str]) -> tuple[int, int, list[str]]:
     """Insert identifiers and their persona links.
 
-    Returns (stored, dropped, notes). Anything the corpus flags as failing its
-    checksum is dropped here rather than stored.
+    Returns (stored, dropped, notes). Two things are dropped rather than stored:
+    anything the corpus flags as failing its checksum, and anything that appears
+    in no bio, no post and no key block.
+
+    The second rule matters more than it looks. `personas.json` declares what is
+    *true* of a persona; the pipeline can only ever know what is *written down*.
+    Seeding a declared-but-unwritten value meant `--source db` could show
+    evidence — "3~18 share a mirror onion" — that no extractor in this system
+    could produce, and that `--source fixtures` therefore never showed. Those
+    are the six recorded in docs/BUILD_PLAN.md as unreachable. Dropping them
+    changes no score (measured: all 190 pairs identical, because 3~18 already
+    saturates H on two PGP fingerprints and the other five sit on a single
+    persona each) and makes the two source modes agree on the evidence as well
+    as the numbers.
     """
     catalogue: dict[tuple[str, str], dict] = {}
     links: list[tuple[str, str, int, str]] = []
@@ -205,6 +255,7 @@ def load_identifiers(session, personas: list[dict]) -> tuple[int, int, list[str]
     for persona in personas:
         first_seen = _ts(persona["first_seen"])
         last_seen = _ts(persona["last_seen"])
+        text_for_persona = texts.get(persona["id"], "")
         for identifier in persona["identifiers"]:
             kind, value = identifier["type"], identifier["value"]
 
@@ -218,6 +269,13 @@ def load_identifiers(session, personas: list[dict]) -> tuple[int, int, list[str]
                 dropped.append(
                     f"persona {persona['id']} ({persona['handle']}): "
                     f"unknown identifier type {kind!r}"
+                )
+                continue
+            if not appears_in_text(value, text_for_persona):
+                dropped.append(
+                    f"persona {persona['id']} ({persona['handle']}): "
+                    f"{kind} {value} - declared but in no bio, post or key block, "
+                    f"so no extractor could derive it"
                 )
                 continue
 
@@ -460,7 +518,7 @@ def main() -> int:
         try:
             load_sources(session, corpus["sources"])
             personas_loaded = load_personas(session, corpus["personas"], post_counts)
-            stored, dropped, notes = load_identifiers(session, corpus["personas"])
+            stored, dropped, notes = load_identifiers(session, corpus["personas"], persona_texts(corpus))
             posts_loaded = load_posts(session, corpus["posts"])
             infra_loaded = load_infra(session, corpus["infra"])
         except Exception as exc:
