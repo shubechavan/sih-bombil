@@ -3,3 +3,10 @@ __pycache__/
 .env
 *.pkl
 runtime/
+
+# Autonomous mode runtime state — records what the last tick did, not config.
+.scheduler-state.json
+.scheduler-stop
+
+# Generated case reports
+*.pdf
