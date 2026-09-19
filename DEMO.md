@@ -120,7 +120,17 @@ Browser → **`/export`** → Download PDF (or show one prepared):
 > "The identifiers are, with checksum validation — base58check, EIP-55 — and
 > anything that fails is dropped, not stored. The linking is TF-IDF writeprints
 > and a posting-hour histogram. The formula is deliberately transparent so every
-> score can be read back as a sentence."
+> score can be read back as a sentence.
+>
+> And the honest test of that is the hard negatives. Regex can't refuse — pairs
+> 2↔20 and 4↔15 were built to look like matches, and both stay WEAK. Same
+> product category on both, scoring a perfect 1.00 on that signal; a matcher
+> keying on category and register would confirm them. What refuses them is the
+> posting-hour histogram — 0.08 and 0.18 — because two people don't sleep on the
+> same schedule by coincidence."
+
+Scroll up in step 1's output to show it — `[PASS] 2~20 … 0.242 WEAK`, with the
+reason the corpus gives printed underneath.
 
 ---
 
