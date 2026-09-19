@@ -40,8 +40,10 @@ session builder, but no forum or market parser was written — live acquisition 
 onion to `recon/fingerprint.py --source live` yourself. Everything else runs on the fixture corpus,
 which is what the demo uses.
 
-`ui/` still contains v1's alerts/threats/analytics pages alongside the five new attribution pages.
-They are not wired to this backend and are left in place rather than deleted.
+`ui/` carries the five attribution pages and nothing else. v1's alerts, threats, analytics, PII,
+pipeline and system pages — and the eight API routes that fed them — were deleted rather than left
+lying around; the console's service strip now reports what `GET /health` actually knows (API,
+Postgres, whether the pipeline has been run) instead of v1's n8n and RoBERTa, which never resolved.
 
 ---
 

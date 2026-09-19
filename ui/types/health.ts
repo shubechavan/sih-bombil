@@ -1,40 +1,40 @@
+/**
+ * Service health, as v2's API actually reports it.
+ *
+ * v1 tracked six services — tor, postgres, n8n, fastapi, roberta, scheduler —
+ * against a payload shape this backend never returned, so the strip showed
+ * "checking" indefinitely for all of them and forced `fastapi` to online.
+ * These three are what `GET /health` genuinely knows: whether it answered,
+ * whether it can reach Postgres, and whether the pipeline has been run far
+ * enough to have actors to show.
+ */
 export type ServiceState = "online" | "offline" | "degraded" | "checking";
 
 export interface ServiceStatus {
   status: ServiceState;
-  latency?: number;
-  error?: string;
+  detail?: string;
   lastChecked?: number;
 }
 
 export interface HealthCheck {
-  tor: ServiceStatus;
-  postgres: ServiceStatus;
-  n8n: ServiceStatus;
-  fastapi: ServiceStatus;
-  roberta: ServiceStatus;
-  scheduler: ServiceStatus;
-}
-
-export interface BackendHealthPayload {
-  status?: string;
-  services?: Partial<Record<ServiceName, ServiceStatus | { state?: ServiceState; status?: ServiceState }>>;
-  cic_live_feed?: {
-    last_modified_utc?: string;
-    latest_prediction?: string;
-    latest_t_score?: number;
-    trigger_scrape?: boolean;
-    detected_at?: string;
-  };
+  api: ServiceStatus;
+  database: ServiceStatus;
+  pipeline: ServiceStatus;
 }
 
 export type ServiceName = keyof HealthCheck;
 
 export const SERVICE_LABELS: Record<ServiceName, string> = {
-  tor: "Tor Proxy",
-  postgres: "PostgreSQL",
-  n8n: "n8n Orchestrator",
-  fastapi: "FastAPI Backend",
-  roberta: "RoBERTa Model",
-  scheduler: "APScheduler",
+  api: "API",
+  database: "PostgreSQL",
+  pipeline: "Pipeline",
 };
+
+/** The shape api/main.py:health() returns. */
+export interface BackendHealthPayload {
+  status?: string;
+  database?: string;
+  ready?: boolean;
+  hint?: string | null;
+  counts?: Record<string, number>;
+}

@@ -1,41 +1,30 @@
 import { create } from "zustand";
 import { bff } from "@/lib/api";
-import type { BackendHealthPayload, HealthCheck, ServiceName, ServiceState, ServiceStatus } from "@/types/health";
+import type {
+  BackendHealthPayload,
+  ServiceName,
+  ServiceStatus,
+} from "@/types/health";
 
 interface HealthStore {
   services: Record<ServiceName, ServiceStatus>;
-  cicLive: BackendHealthPayload["cic_live_feed"] | null;
+  counts: Record<string, number> | null;
+  hint: string | null;
   lastChecked: number | null;
   isChecking: boolean;
-
   refresh: () => Promise<void>;
 }
 
 const initialServices: Record<ServiceName, ServiceStatus> = {
-  tor: { status: "checking" },
-  postgres: { status: "checking" },
-  n8n: { status: "checking" },
-  fastapi: { status: "checking" },
-  roberta: { status: "checking" },
-  scheduler: { status: "checking" },
+  api: { status: "checking" },
+  database: { status: "checking" },
+  pipeline: { status: "checking" },
 };
-
-function normalizeState(value: unknown): ServiceState {
-  const v = String(value ?? "checking").toLowerCase();
-  if (v === "online" || v === "offline" || v === "degraded" || v === "checking") {
-    return v;
-  }
-  return "checking";
-}
-
-function statusFromServiceEntry(entry: unknown): ServiceState {
-  const rec = entry as { status?: unknown; state?: unknown } | undefined;
-  return normalizeState(rec?.status ?? rec?.state);
-}
 
 export const useHealthStore = create<HealthStore>()((set, get) => ({
   services: initialServices,
-  cicLive: null,
+  counts: null,
+  hint: null,
   lastChecked: null,
   isChecking: false,
 
@@ -45,29 +34,38 @@ export const useHealthStore = create<HealthStore>()((set, get) => ({
 
     try {
       const data = await bff.get("health").json<BackendHealthPayload>();
-      const rawServices = data.services ?? (data as unknown as Partial<HealthCheck>);
-
-      const nextServices: Record<ServiceName, ServiceStatus> = {
-        tor: { status: statusFromServiceEntry(rawServices?.tor) },
-        postgres: { status: statusFromServiceEntry(rawServices?.postgres) },
-        n8n: { status: statusFromServiceEntry(rawServices?.n8n) },
-        fastapi: { status: statusFromServiceEntry(rawServices?.fastapi) },
-        roberta: { status: statusFromServiceEntry(rawServices?.roberta) },
-        scheduler: { status: statusFromServiceEntry(rawServices?.scheduler) },
-      };
-
-      if (!rawServices?.fastapi) {
-        nextServices.fastapi = { status: "online" };
-      }
-
+      const databaseOk = data.database === "ok";
       set({
-        services: nextServices,
-        cicLive: data.cic_live_feed ?? null,
+        services: {
+          // It answered, so it is up. Nothing else to infer.
+          api: { status: "online" },
+          database: {
+            status: databaseOk ? "online" : "offline",
+            detail: databaseOk ? undefined : data.database,
+          },
+          // `ready` is false until link.cluster has run and there are actors
+          // to show. Degraded rather than offline: the API is fine, the
+          // pipeline simply has not been taken to the end yet.
+          pipeline: {
+            status: data.ready ? "online" : "degraded",
+            detail: data.ready ? undefined : (data.hint ?? undefined),
+          },
+        },
+        counts: data.counts ?? null,
+        hint: data.hint ?? null,
         lastChecked: Date.now(),
         isChecking: false,
       });
     } catch {
-      set({ isChecking: false });
+      set({
+        services: {
+          api: { status: "offline" },
+          database: { status: "offline" },
+          pipeline: { status: "offline" },
+        },
+        lastChecked: Date.now(),
+        isChecking: false,
+      });
     }
   },
 }));

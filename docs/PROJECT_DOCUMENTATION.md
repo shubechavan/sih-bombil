@@ -2,8 +2,7 @@
 
 **Classification**: Authorized Investigative Use Only
 **Problem statement**: SIH — threat actor attribution and deanonymization across onion networks
-**Scope of this document**: Phases 0–3, which are built and measurable. Phases 4–5 are specified in
-§7 as work not yet done.
+**Scope of this document**: Phases 0–5, all built and measurable. §7 lists what remains undone.
 
 Every figure, path and behaviour in this document is reproducible on a clean checkout with the
 command printed beside it. Nothing here describes a component that does not exist.
@@ -47,9 +46,13 @@ dark-sentinel-v2/
 ├── db.py                     SQLAlchemy 2.x models, engine, session factory, UTC helpers,
 │                             IDENTIFIER_WEIGHTS, BAND_THRESHOLDS, require_schema
 ├── schema_v2.sql             Re-runnable DDL: 11 tables + 1 view, indexes, constraints
-├── docker-compose.yml        PostgreSQL 16 only. tor/api/ui services are commented out.
-├── requirements.txt          torch + GLiNER, scikit-learn, networkx, SQLAlchemy, mmh3,
-│                             cryptography, requests + PySocks
+├── docker-compose.yml        postgres + tor + api + ui, plus a one-shot `seed` profile
+├── Dockerfile                The Python image: API, pipeline scripts, scheduler
+├── ui/Dockerfile             The Next.js console image
+├── requirements.txt          scikit-learn, networkx, matplotlib, SQLAlchemy, mmh3,
+│                             cryptography, reportlab, fastapi, APScheduler
+├── requirements-ml.txt       Optional GLiNER stack. Nothing in v2 imports it; it pulls
+│                             PyTorch (~3 GB) for a path with a tested regex fallback.
 │
 ├── docs/
 │   ├── BUILD_PLAN.md         5-phase build plan, reuse map, and the known-corpus-gap record
@@ -72,7 +75,18 @@ dark-sentinel-v2/
 │   ├── behaviour.py          Posting-hour histogram, category Jaccard, trade vocab, day-of-week
 │   ├── infra.py              The I term: persona-controlled vs site-broadcast
 │   ├── resolve.py            Pairwise resolution, evidence assembly, link storage
-│   └── graph.py              NetworkX components, evidence paths, transitive closure
+│   ├── graph.py              NetworkX components, evidence paths, transitive closure
+│   └── cluster.py            Components → actor rows; the merge decision, made explicitly
+
+├── api/                      Layer 5 — FastAPI over the attribution database
+│   ├── main.py               App, CORS, error handlers, /health, /meta
+│   ├── deps.py               Session dependency; the only place a NULL becomes unmeasured
+│   ├── schemas.py            Wire shapes; Component is a tagged union, never a bare float
+│   ├── queries.py            Shared reads so two routers cannot disagree about one fact
+│   └── routers/              actors, graph, timeline, recon, scan, export
+
+├── export/
+│   └── report.py             PDF case report: profile, identifiers, graph, evidence, method
 │
 ├── score/
 │   └── attribution.py        The formula, weight presets, noisy-OR, renormalisation, bands
@@ -101,20 +115,28 @@ dark-sentinel-v2/
 │   ├── evaluate.py           Benchmark against ground_truth.json
 │   ├── gen_fixtures.py       Corpus generator
 │   ├── gen_pgp_blocks.py     OpenPGP block generator
+│   ├── scheduler.py          Autonomous mode. Starts nothing unless --start is passed.
 │   ├── content_templates.py  Post text templates for the generator
 │   ├── style_profiles.py     Per-persona style parameters for the generator
 │   └── wallet_codec.py       Base58Check, Bech32, EIP-55 validation math
 │
-├── tests/                    7 modules, 230 tests
+├── tests/                    11 modules, 309 tests
 │   ├── test_attribution.py   test_identifiers.py   test_fixtures.py
 │   ├── test_linking.py       test_infra.py         test_recon.py
-│   └── test_correlate.py
+│   ├── test_correlate.py     test_cluster.py       test_persistence.py
+│   └── test_api.py           test_phase5.py
 │
-└── ui/                       Dark Sentinel v1 Next.js app. NOT wired to this backend.
-    ├── app/  components/  hooks/  lib/  styles/
+└── ui/                       Next.js attribution console
+    ├── app/actors  app/actors/[id]  app/graph  app/timeline  app/export
+    ├── app/api/attribution   Catch-all proxy to the FastAPI service
+    ├── app/api/health        Feeds the shell's service strip
+    ├── components/attribution  BandPill, ComponentBreakdown, EvidenceList,
+    │                           ForceGraph, RefusalNotice
+    ├── components/tactical     TacticalPanel, StatCard, CommandBar, NavRail
+    └── scripts/verify-pages.mjs  Drives a real browser; 27 checks
 ```
 
-**Not present**: `api/`, `export/`, `collectors/`, `tor_client.py`. Those are Phases 4–5 (§7).
+**Not present**: `collectors/` and `tor_client.py`. See §7.
 
 ---
 
@@ -418,47 +440,50 @@ stored correlation carries its own provenance warning. Treat its first real run 
 
 ## 7. What is not built
 
-### Phase 4 — API and console
+### No live collectors
 
-`api/` does not exist; only `legacy/alert_api.py` from v1. Required:
+`collectors/` does not exist. The build plan specified `forum_collector.py` and
+`market_collector.py` joining `legacy/darksearch.py`'s Tor session to `extract/`; neither was
+written. Live acquisition today means handing one onion to `recon/fingerprint.py --source live`
+yourself. Everything demonstrated in this document runs on the fixture corpus.
 
-- `api/main.py` — app bootstrap, CORS, error handling, `get_db` dependency
-- `api/routers/actors.py` — `GET /actors` (filter by category, band, source, date range),
-  `GET /actors/{id}` (personas, identifiers, links with evidence, post samples, timeline)
-- `api/routers/graph.py` — `GET /graph`, node-link payload with `min_score` filtering
-- `api/routers/timeline.py` — `GET /timeline`, activity buckets over a range
-- `api/routers/recon.py` — `GET /recon/{onion}`, findings plus correlation candidates
-- `api/routers/scan.py` — `POST /scan`, background job returning an id, audited in `scans`
-- `GET /export/{fmt}` — csv | json | pdf
+This is the largest gap between the plan and the repository, and it is the reason every published
+figure is qualified as measured on a synthetic corpus.
 
-`ui/` is v1's app (alerts, threats, analytics). Its tactical component library — `TacticalPanel`,
-`ThreatRow`, `ConfidenceMeter`, `NavRail` — and its design tokens are reusable; the pages are not.
-Required routes: `/actors` (table with band pills), `/actors/[id]` (dossier with the H/S/B/I
-breakdown and raw citations), `/graph` (force-directed, edge thickness by score, click an edge for
-its evidence), `/timeline`, `/recon`.
+### The Shodan provider has never run against a live key
 
-Build the API before the UI. With no stable contract, Phase 4 becomes a rewrite.
+`recon/correlate.py::ShodanProvider` is implemented against the documented `api.shodan.io`
+endpoints, and no run has confirmed it, because there is no key here to confirm it with. It says so
+when selected and writes the same caveat into the evidence of every row it produces.
 
-### Phase 5 — autonomy and reporting
+### The I term is unmeasured on this corpus
 
-- APScheduler loop re-scanning registered sources, linking only new personas, appending to `scans`
-- `export/report.py` — PDF case report: actor profile, identifier table, graph image, evidence list,
-  methodology note, operator and generated-at
+Not a gap in the code — see §5. `link/infra.py` measures when given a corpus where personas control
+their own hosts; this one does not carry that data.
 
-### Live acquisition
+### Incremental linking is bounded by the vectoriser
 
-No `collectors/` package exists. `forum_collector.py` and `market_collector.py` would join
-`legacy/darksearch.py`'s Tor session to `extract/`. Today live acquisition means handing an onion to
-`recon/fingerprint.py --source live` yourself.
+`scripts/scheduler.py` skips linking when no new text arrived, but cannot score *only* new pairs
+when it did, because the writeprint vocabulary is fitted over the whole corpus. The measurement and
+the reasoning are in `docs/BUILD_PLAN.md`; the fix is a frozen vocabulary, which changes what a
+writeprint means and needs its own evaluation.
 
----
+### Operational rough edges
+
+- `POST /scan` keeps its job registry in process memory and shells out to the module entry points.
+  It does not survive an API restart and will not work across more than one replica; the durable
+  record is the `scans` table, which every step writes to regardless.
+- The console image ships full `node_modules` rather than Next's standalone output, so it is larger
+  than it needs to be.
+- `legacy/` is retained deliberately per CLAUDE.md — `darksearch.py` is the Tor plumbing
+  `recon/tor.py` shims onto. `legacy/alert_api.py` is v1's server and is not mounted by anything.
 
 ## 8. Reproducing every figure in this document
 
 ```bash
 pip install -r requirements.txt
 
-python -m pytest -q                                 # 230 passed
+python -m pytest -q                                 # 309 passed
 python scripts/evaluate.py                          # §4, §5 baseline
 python scripts/evaluate.py --transitive             # closure pass
 python scripts/evaluate.py --infra site-broadcast   # §5.1 counter-evidence
@@ -466,20 +491,31 @@ python -m recon.fingerprint --source fixtures --dry-run   # §6.3
 python -m recon.correlate  --source fixtures --dry-run    # §6.4
 ```
 
-All offline. With Postgres down, `pytest` reports 229 passed and 1 skipped — one Phase 1 test needs
-a database. With PostgreSQL available:
+All offline. With Postgres down, `pytest` reports 261 passed and 47 skipped — every test that needs
+a database skips rather than fails. With PostgreSQL available:
 
 ```bash
 python scripts/apply_schema.py
-python scripts/load_fixtures.py
+python scripts/load_fixtures.py --reset
 python scripts/ingest.py --source fixtures
 python -m link.resolve --source db
+python -m link.cluster  --source db                 # required: writes actors
 python -m recon.fingerprint --source fixtures
 python -m recon.correlate  --source db
 python scripts/evaluate.py --source db              # identical figures to fixtures mode
+
+python -m export.report --actor 1 --out case.pdf    # §the PDF case report
+python scripts/scheduler.py --run-once              # one autonomous pass
 ```
 
-`docker compose up -d db` provides PostgreSQL 16.
+Or the whole stack at once:
+
+```bash
+cp .env.example .env
+docker compose up -d --build            # postgres + tor + api + ui
+docker compose --profile seed up seed   # schema, corpus, link, cluster, recon, evaluate
+node ui/scripts/verify-pages.mjs        # 27 browser checks against the console
+```
 
 ---
 

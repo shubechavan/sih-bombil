@@ -27,7 +27,7 @@ That is the single biggest change. Everything else follows from it.
 | `darksearch.py` | Tor session, SOCKS proxy pool, circuit rotation, engine ranking, adaptive timeouts, content-hash caching, circuit breaker. This is 1100 lines of working crawler plumbing. Huge head start. |
 | `fix_postgres.sql` | Migration style (`CREATE TABLE IF NOT EXISTS` + `ADD COLUMN IF NOT EXISTS`) — keep the pattern, add new tables. |
 | `alert_api.py` | FastAPI shell, CORS, error handling. Add new routers to it. |
-| `darksentinel-ui/` | Next.js 14 + zustand + recharts + tanstack-table + the whole tactical component library (`TacticalPanel`, `ThreatRow`, `ConfidenceMeter`, `NavRail`...). Reskin the pages, keep the components. |
+| `darksentinel-ui/` | Next.js 14 + zustand + recharts + tanstack-table + the whole tactical component library (`TacticalPanel`, `ThreatRow`, `ConfidenceMeter`, `NavRail`...). Reskin the pages, keep the components. **What happened:** the toolchain and four components (`TacticalPanel`, `StatCard`, `CommandBar`, `NavRail`) were kept; the rest went. `ThreatRow` and `ConfidenceMeter` were superseded by `components/attribution/` — a confidence band is not a severity, and a component breakdown has to render "not assessed" where a meter would draw a zero. v1's pages were deleted in Phase 5 rather than reskinned. |
 | `obfuslex_engine.py` → `leet_decode()` | Repurposed: `Dr3adPirat3` → `dreadpirate`. This is exactly what you need for alias matching. Best hidden gem in the old repo. |
 
 ### Repurpose (same code, opposite job)
