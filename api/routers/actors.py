@@ -137,9 +137,14 @@ def list_actors(
     )
 
 
-@router.get("/actors/{actor_id}", response_model=ActorDetail)
-def get_actor(actor_id: int, session=Depends(get_session),
-              post_samples: int = Query(5, ge=0, le=50)) -> ActorDetail:
+def collect_actor_detail(session, actor_id: int, *,
+                         post_samples: int = 5) -> ActorDetail:
+    """The profile, callable as an ordinary function.
+
+    Separate from the route for the same reason collect_actors is: calling a
+    FastAPI route directly hands it Query(...) objects where its defaults
+    should be. export/report.py reads through this.
+    """
     row = session.get(Actor, actor_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"no actor {actor_id}")
@@ -198,3 +203,9 @@ def get_actor(actor_id: int, session=Depends(get_session),
             for key in sorted(buckets)
         ],
     )
+
+
+@router.get("/actors/{actor_id}", response_model=ActorDetail)
+def get_actor(actor_id: int, session=Depends(get_session),
+              post_samples: int = Query(5, ge=0, le=50)) -> ActorDetail:
+    return collect_actor_detail(session, actor_id, post_samples=post_samples)

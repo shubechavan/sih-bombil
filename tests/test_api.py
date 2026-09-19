@@ -243,10 +243,22 @@ def test_an_unknown_export_column_is_rejected_by_name(client):
     assert "nope" in response.json()["detail"]
 
 
-def test_pdf_export_names_the_phase_it_belongs_to(client):
+def test_pdf_export_serves_the_case_report(client):
+    """Phase 4 returned 400 here naming Phase 5. Phase 5 built it."""
     response = client.get("/export/pdf")
-    assert response.status_code == 400
-    assert "Phase 5" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content[:5] == b"%PDF-"
+    assert "attachment" in response.headers.get("content-disposition", "")
+
+
+def test_pdf_export_can_be_narrowed_to_one_actor(client, actors):
+    whole = client.get("/export/pdf")
+    one = client.get("/export/pdf", params={"actor": actors[0]["id"]})
+    assert one.status_code == 200
+    assert len(one.content) < len(whole.content), (
+        "a single-actor report should be smaller than the whole set"
+    )
 
 
 def test_scan_rejects_an_unknown_step(client):

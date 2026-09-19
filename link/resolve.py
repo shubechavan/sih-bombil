@@ -231,7 +231,16 @@ def load_corpus(session) -> Corpus:
     }
 
     posts: dict[int, list[dict]] = {pid: [] for pid in personas}
-    for row in session.execute(select(Post)).scalars():
+    # ORDER BY is not cosmetic here. Corpus.texts() concatenates a persona's
+    # posts, and the writeprint is char n-grams over that concatenation, so the
+    # order the rows come back in changes the vector — and changes
+    # `corpus_version`, which is the key the writeprint cache is stored under.
+    # Without this, re-running ingest reshuffles Postgres's physical row order
+    # and every cached vector is invalidated for no reason, while two runs of
+    # `evaluate --source db` can disagree in the low digits.
+    for row in session.execute(
+        select(Post).order_by(Post.posted_at.nullslast(), Post.id)
+    ).scalars():
         if row.persona_id not in posts:
             continue
         posts[row.persona_id].append({

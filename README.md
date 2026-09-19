@@ -1,8 +1,9 @@
 # Dark Sentinel v2 — Dark Web Threat Actor Attribution Platform
 
-[![Tests](https://img.shields.io/badge/pytest-230%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/pytest-309%20passed-brightgreen.svg)](tests/)
+[![UI checks](https://img.shields.io/badge/browser%20checks-27%20passed-brightgreen.svg)](ui/scripts/verify-pages.mjs)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-blue.svg)](requirements.txt)
-[![Status](https://img.shields.io/badge/status-Phases%200--3%20complete%20%7C%204--5%20not%20built-orange.svg)](docs/BUILD_PLAN.md)
+[![Status](https://img.shields.io/badge/status-Phases%200--5%20complete-brightgreen.svg)](docs/BUILD_PLAN.md)
 [![Use](https://img.shields.io/badge/use-Authorized%20Investigative%20Only-red.svg)](#legal--operational-disclaimer)
 
 > Operators are not caught because Tor's cryptography fails. They are caught because the same
@@ -30,14 +31,17 @@ Commands are given for each claim. Where something is not built, it says so.
 | 1 | Identifier extraction, normalization, PGP, ingest | **Complete** |
 | 2 | Stylometry, behaviour, resolution, graph, scoring | **Complete** |
 | 3 | Passive recon, clearnet correlation, the I term | **Complete** |
-| 4 | FastAPI endpoints, Next.js attribution console | **Not built** — no `api/` directory exists |
-| 5 | Autonomous scheduler, PDF case report | **Not built** — no `export/` directory exists |
+| 4 | FastAPI endpoints, Next.js attribution console | **Complete** |
+| 5 | Autonomous mode, PDF case report, compose stack | **Complete** |
 
-`ui/` contains the **v1** Next.js app. It is not wired to anything in this repo yet.
+The one thing the build plan asked for that does **not** exist is a `collectors/` package.
+`legacy/darksearch.py` holds v1's working Tor crawler and [recon/tor.py](recon/tor.py) exposes its
+session builder, but no forum or market parser was written — live acquisition today means handing an
+onion to `recon/fingerprint.py --source live` yourself. Everything else runs on the fixture corpus,
+which is what the demo uses.
 
-There are no live collectors. `legacy/darksearch.py` holds v1's working Tor crawler and
-[recon/tor.py](recon/tor.py) exposes its session builder, but no `collectors/` package has been
-written — live acquisition today means passing an onion to `recon/fingerprint.py` yourself.
+`ui/` still contains v1's alerts/threats/analytics pages alongside the five new attribution pages.
+They are not wired to this backend and are left in place rather than deleted.
 
 ---
 
@@ -272,12 +276,25 @@ the evidence of every row it produces.
 
 ## Quickstart
 
+### The whole stack, in one command
+
+```bash
+cp .env.example .env
+docker compose up -d --build              # postgres + tor + api + console
+docker compose --profile seed up seed     # schema, corpus, link, cluster, recon, evaluate
+```
+
+API on <http://localhost:8000/docs>, console on <http://localhost:3000/actors>.
+
+`seed` sits behind a profile so a plain `up` never rewrites a populated database as a side effect of
+starting the stack. Autonomous mode is deliberately **not** a service — see below.
+
 ### Offline — no database, no Tor, no network
 
 ```bash
 pip install -r requirements.txt
 
-python -m pytest -q                                      # 230 passed
+python -m pytest -q                                      # 309 passed
 python scripts/evaluate.py                               # the table above
 python scripts/evaluate.py --transitive                  # closure pass
 python scripts/evaluate.py --infra site-broadcast        # the counter-evidence
@@ -285,28 +302,61 @@ python -m recon.fingerprint --source fixtures --dry-run
 python -m recon.correlate  --source fixtures --dry-run
 ```
 
-`--source fixtures` is deterministic and needs no network at all. With Postgres down,
-`pytest` reports 229 passed and 1 skipped — one Phase 1 test needs a database.
+`--source fixtures` is deterministic and needs no network at all. With Postgres down, `pytest`
+reports 261 passed and 47 skipped — every test that needs a database skips rather than fails.
 
-### With PostgreSQL
+### With PostgreSQL, step by step
 
 ```bash
-cp .env.example .env            # set PG_* / PG_URL
-
 python scripts/apply_schema.py            # re-runnable; --check reports drift
-python scripts/load_fixtures.py           # seed the corpus (--reset to truncate)
+python scripts/load_fixtures.py --reset   # seed the corpus
 python scripts/ingest.py --source fixtures
 python -m link.resolve --source db        # writes links + writeprints
+python -m link.cluster  --source db       # writes actors + personas.actor_id
 python -m recon.fingerprint --source fixtures
 python -m recon.correlate  --source db
 python scripts/evaluate.py --source db    # same numbers as fixtures mode
-```
 
-`docker-compose.yml` provides PostgreSQL 16 (`docker compose up -d db`). The tor, api and ui
-services in that file are commented out — they are Phase 4/5 and not yet real.
+uvicorn api.main:app --reload --port 8000
+cd ui && npm install && npm run dev       # :3000
+```
 
 `scripts/apply_schema.py` exists because `psql` is frequently absent when Postgres runs in a
 container. If you have `psql`, `psql $PG_URL -f schema_v2.sql` is equivalent.
+
+**`link.cluster` is a required step, not an optional one.** Phase 2 deliberately stops short of
+writing `actors`, because deciding that two personas are one actor is a judgement rather than a
+similarity measurement. Until it runs, `/actors` is empty and `/health` says so.
+
+### PDF case report
+
+```bash
+python -m export.report --actor 1 --out case.pdf
+python -m export.report --all --out cases.pdf
+curl -OJ 'http://localhost:8000/export/pdf?actor=1'
+```
+
+Actor profile, identifiers with provenance, the link graph, every link's evidence in plain language,
+a methodology note, and the operator and generated-at stamp on every page. It carries the same rule
+as the screen: **an unmeasured component prints the words "not assessed" and the reason, never
+0.00** — and the synthetic-corpus caveat is on the report itself, not just in the terminal.
+
+### Autonomous mode
+
+```bash
+python scripts/scheduler.py --run-once              # one pass
+python scripts/scheduler.py --start --interval 15m  # run on a timer
+python scripts/scheduler.py --status                # what the last tick did
+python scripts/scheduler.py --stop                  # from another shell
+```
+
+**Nothing starts this.** It is not a compose service, the API does not launch it, and importing the
+module starts no thread — `tests/test_phase5.py` asserts that in a subprocess. A tick ingests, then
+compares the corpus's stylometric fingerprint against the last tick's: unchanged means linking is
+skipped entirely and the tick says so; changed means a full re-link, because the writeprint
+vocabulary is fitted over the whole corpus and a partial re-score would leave two incompatible
+scorings in one table. Every tick writes a `scans` row with a SHA-256, including the ones that
+changed nothing.
 
 ### Live Tor
 
@@ -342,8 +392,10 @@ a consistent writing style. Two pairs are built to *look* linkable and must be r
 is below the stylometry floor; one carries two deliberately corrupted wallets.
 
 `docs/BUILD_PLAN.md` records the corpus's known gaps — including eight declared identifiers that
-appear in no prose and are therefore unreachable by any extractor. They are documented rather than
-quietly patched, and `scripts/ingest.py --dry-run` prints them.
+appear in no prose and are therefore unreachable by any extractor. `scripts/load_fixtures.py` no
+longer seeds them, so the database holds only values the pipeline can actually derive; dropping them
+was measured first and moved no score, because five sat on a single persona and the sixth was a
+mirror onion on a pair that already saturates H on two PGP fingerprints.
 
 ---
 
@@ -354,18 +406,24 @@ db.py              SQLAlchemy 2.x models, engine, session factory, band threshol
 schema_v2.sql      re-runnable DDL — 11 tables, 1 view, indexes, audit trail
 extract/           identifiers, normalize (leet decode), pgp, gliner_extract
 recon/             fingerprint, correlate, tor (shim onto legacy/darksearch.py)
-link/              stylometry, behaviour, infra, resolve, graph
+link/              stylometry, behaviour, infra, resolve, graph, cluster
 score/             attribution — the formula, isolated and unit-tested
+api/               FastAPI: actors, graph, timeline, recon, scan, export + schemas
+export/            report.py — the PDF case report
 fixtures/          synthetic corpus + ground_truth.json
-scripts/           apply_schema, load_fixtures, ingest, evaluate, generators
-tests/             7 pytest modules, 230 tests
+scripts/           apply_schema, load_fixtures, ingest, evaluate, scheduler, generators
+tests/             11 pytest modules, 309 tests
+ui/                Next.js console: /actors /actors/[id] /graph /timeline /export
 legacy/            v1 code kept for reuse — darksearch, llm, obfuslex, alert_api
-ui/                v1 Next.js app, not yet wired to this backend
+Dockerfile         the Python image: API, pipeline, scheduler
+ui/Dockerfile      the console image
+docker-compose.yml postgres + tor + api + ui, plus a one-shot `seed` profile
 ```
 
 ## Test suite
 
-`python -m pytest -q` → **230 passed**.
+`python -m pytest -q` → **309 passed**, plus 27 browser checks via
+`node ui/scripts/verify-pages.mjs`.
 
 | module | covers |
 |---|---|
@@ -376,6 +434,13 @@ ui/                v1 Next.js app, not yet wired to this backend
 | `test_infra.py` | persona-controlled vs site-broadcast, and why the latter fails |
 | `test_recon.py` | passive-only probe surface, rate limiter, mmh3, misconfig rubric |
 | `test_correlate.py` | correlation rubric, planted pivots, noise suppression, providers |
+| `test_cluster.py` | the actor partition against the answer key, threshold behaviour |
+| `test_persistence.py` | NULL vs 0.0 in the database, stored refusals, identifier provenance |
+| `test_api.py` | the wire contract — a component is a value or a reason, never both |
+| `test_phase5.py` | the scheduler starts nothing on import; the PDF prints no phantom zeros |
+
+Tests that need Postgres skip rather than fail when it is down, so the offline path stays green on
+a clean checkout.
 
 ---
 

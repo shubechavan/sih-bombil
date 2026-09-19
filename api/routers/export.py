@@ -1,7 +1,10 @@
-"""export.py — csv | json of the current result set.
+"""export.py — csv | json | pdf of the current result set.
 
-PDF is Phase 5 and is not stubbed here; asking for it returns 400 naming the
-phase rather than an empty file.
+PDF is the case report in export/report.py: actor profile, identifiers,
+link graph, evidence and methodology. It reads the same ActorDetail payloads
+/actors/{id} serves, so the paper and the screen cannot drift — and it inherits
+the same rule, printing "not assessed" with a reason where a component was not
+measured rather than a zero.
 
 The CSV flattening is where an unmeasured component is most likely to be
 silently turned into a zero, because a spreadsheet cell wants a number. It is
@@ -29,7 +32,7 @@ from fastapi.responses import Response  # noqa: E402
 from api.deps import get_session  # noqa: E402
 from api.queries import link_summaries, persona_summaries  # noqa: E402
 from db import utcnow  # noqa: E402
-from api.routers.actors import collect_actors  # noqa: E402
+from api.routers.actors import collect_actor_detail, collect_actors  # noqa: E402
 
 router = APIRouter(tags=["export"])
 
@@ -87,6 +90,14 @@ def _flatten(dataset: str, row: dict) -> dict:
     return flat
 
 
+def _operator(explicit: Optional[str]) -> str:
+    """Whose name goes on the report. Never blank — a report with no operator
+    on it is not an auditable document."""
+    import os  # noqa: PLC0415
+
+    return explicit or os.environ.get("OPERATOR_ID") or "unknown"
+
+
 def _serialise(value):
     if isinstance(value, datetime):
         return value.isoformat()
@@ -104,16 +115,36 @@ def export(
     dataset: str = Query("links", description=f"one of {DATASETS}"),
     columns: Optional[str] = Query(
         None, description="comma-separated subset of the dataset's columns"),
+    actor: Optional[list[int]] = Query(
+        None, description="pdf only: actor id, repeatable. Omit for all."),
+    operator: Optional[str] = Query(
+        None, description="pdf only: printed on every page of the report"),
 ) -> Response:
     fmt = fmt.lower()
-    if fmt == "pdf":
-        raise HTTPException(
-            status_code=400,
-            detail="PDF export is Phase 5 (export/report.py) and is not built. "
-                   "Use csv or json.",
-        )
-    if fmt not in {"csv", "json"}:
+    if fmt not in {"csv", "json", "pdf"}:
         raise HTTPException(status_code=400, detail=f"unknown format {fmt!r}")
+
+    if fmt == "pdf":
+        # The case report is per actor, not per row, so `dataset` and `columns`
+        # do not apply; `actor` selects which, and omitting it reports on all.
+        from export.report import build_report  # noqa: PLC0415
+
+        wanted = actor or [a.id for a in collect_actors(session, limit=1000)]
+        if not wanted:
+            raise HTTPException(
+                status_code=404,
+                detail="no actors to report on — run `python -m link.cluster "
+                       "--source db`, or POST /scan with the cluster step",
+            )
+        details = [collect_actor_detail(session, actor_id).model_dump()
+                   for actor_id in wanted]
+        stamp = utcnow().strftime("%Y%m%dT%H%M%SZ")
+        name = f"dark-sentinel-case-report-{stamp}.pdf"
+        return Response(
+            content=build_report(details, operator=_operator(operator)),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{name}"'},
+        )
     if dataset not in DATASETS:
         raise HTTPException(
             status_code=400,

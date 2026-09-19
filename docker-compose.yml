@@ -1,14 +1,24 @@
-# docker-compose.yml — Dark Sentinel v2
+# docker-compose.yml — Dark Sentinel v2, whole stack.
 #
 # Compose interpolates ${...} from a .env file in this directory, so step one is:
 #   cp .env.example .env
 #
-#   docker compose up -d db
-#   docker compose exec -T db psql -U "$PG_USER" -d "$PG_DB" < schema_v2.sql
-#   python scripts/load_fixtures.py --reset
+#   docker compose up -d --build
+#   docker compose exec -T api python scripts/apply_schema.py
+#   docker compose exec -T api python scripts/load_fixtures.py --reset
+#   docker compose exec -T api python scripts/ingest.py --source fixtures
+#   docker compose exec -T api python -m link.resolve --source db
+#   docker compose exec -T api python -m link.cluster  --source db
 #
-# The tor and api services are commented out until Phase 5; their shape is here
-# so the wiring is settled now rather than at 3am.
+# then: API on http://localhost:8000/docs, console on http://localhost:3000
+#
+# `seed` does all of the above for you — see the profile at the bottom:
+#   docker compose --profile seed up seed
+#
+# Autonomous mode is NOT a service here on purpose. It re-scans on a timer, and
+# a stack that starts crawling because somebody ran `up` is not one anybody
+# should run. Start it deliberately:
+#   docker compose exec api python scripts/scheduler.py --start --interval 15m
 
 services:
   db:
@@ -34,43 +44,91 @@ services:
       retries: 10
       start_period: 10s
 
-  # ── Phase 5 ────────────────────────────────────────────────────────────────
+  tor:
+    image: dperson/torproxy
+    container_name: darksentinel-tor
+    restart: unless-stopped
+    ports:
+      - "9050:9050"
+    healthcheck:
+      # Bootstrapping a circuit takes a while on a cold start, hence the long
+      # start_period. Nothing depends on tor being *healthy* — the fixtures
+      # path never touches it — so a slow or blocked Tor does not hold up the
+      # demo, it only means `--source live` will refuse until it settles.
+      test: ["CMD-SHELL", "curl -s --socks5-hostname localhost:9050 https://check.torproject.org/api/ip | grep -q '\"IsTor\":true'"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+      start_period: 90s
+
+  api:
+    build: .
+    container_name: darksentinel-api
+    restart: unless-stopped
+    environment:
+      PG_HOST: db
+      PG_PORT: 5432
+      PG_DB: ${PG_DB:-darksentinel}
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD:-darksentinel}
+      # Overrides the PG_* pair above if it leaks in from .env pointing at the
+      # host; inside the network the database is `db`, never localhost.
+      PG_URL: postgresql://${PG_USER:-postgres}:${PG_PASSWORD:-darksentinel}@db:5432/${PG_DB:-darksentinel}
+      TOR_SOCKS: socks5h://tor:9050
+      OPERATOR_ID: ${OPERATOR_ID:-unknown}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SHODAN_API_KEY: ${SHODAN_API_KEY:-}
+      # The browser talks to the console, which proxies; this is the console's
+      # origin, which is what CORS has to allow.
+      API_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      tor:
+        condition: service_started
+
+  ui:
+    build: ./ui
+    container_name: darksentinel-ui
+    restart: unless-stopped
+    environment:
+      # Read at runtime by app/api/_backend.ts. The browser never calls the API
+      # directly — every attribution page goes through the console's own route
+      # handlers — so the service name is the right address here.
+      BACKEND_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ── one-shot: apply the schema and load the demo corpus ────────────────────
   #
-  # tor:
-  #   image: dperson/torproxy
-  #   container_name: darksentinel-tor
-  #   restart: unless-stopped
-  #   ports:
-  #     - "9050:9050"
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -s --socks5-hostname localhost:9050 https://check.torproject.org | grep -q Congratulations"]
-  #     interval: 30s
-  #     timeout: 20s
-  #     retries: 5
-  #     start_period: 60s
+  #   docker compose --profile seed up seed
   #
-  # api:
-  #   build: .
-  #   container_name: darksentinel-api
-  #   restart: unless-stopped
-  #   command: uvicorn api.main:app --host 0.0.0.0 --port 8000
-  #   environment:
-  #     PG_HOST: db
-  #     PG_PORT: 5432
-  #     PG_DB: ${PG_DB:-darksentinel}
-  #     PG_USER: ${PG_USER:-postgres}
-  #     PG_PASSWORD: ${PG_PASSWORD:-darksentinel}
-  #     TOR_SOCKS: socks5h://tor:9050
-  #     OPERATOR_ID: ${OPERATOR_ID:-unknown}
-  #     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-  #     SHODAN_API_KEY: ${SHODAN_API_KEY:-}
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     tor:
-  #       condition: service_started
+  # Behind a profile so `docker compose up` never rewrites a populated database
+  # as a side effect of starting the stack.
+  seed:
+    build: .
+    container_name: darksentinel-seed
+    profiles: ["seed"]
+    environment:
+      PG_URL: postgresql://${PG_USER:-postgres}:${PG_PASSWORD:-darksentinel}@db:5432/${PG_DB:-darksentinel}
+      OPERATOR_ID: ${OPERATOR_ID:-seed}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python scripts/apply_schema.py &&
+             python scripts/load_fixtures.py --reset &&
+             python scripts/ingest.py --source fixtures &&
+             python -m link.resolve --source db &&
+             python -m link.cluster  --source db &&
+             python -m recon.fingerprint --source fixtures &&
+             python -m recon.correlate  --source db &&
+             python scripts/evaluate.py --source db"
 
 volumes:
   pgdata:

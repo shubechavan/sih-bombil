@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+ui/node_modules
+ui/.next
+.env
+.scheduler-state.json
+.scheduler-stop
+*.pdf

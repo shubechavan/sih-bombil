@@ -334,6 +334,39 @@ comment. The declared values differ by 0.04 and imply a distinction the data doe
 Recorded, not patched: the fixture file keeps its numbers and the weights were not tuned backwards to
 reproduce them.
 
+### Post order was never fixed, so writeprints were not reproducible (Phase 5 artifact)
+
+`link/resolve.py::load_corpus` read posts with a bare `select(Post)` and no `ORDER BY`.
+`Corpus.texts()` concatenates a persona's posts and the writeprint is char n-grams over that
+concatenation, so the order Postgres happened to return rows in changed the vector — and changed
+`corpus_version`, the key the writeprint cache is stored under.
+
+Found by the autonomous scheduler, which compares that fingerprint between ticks to decide whether
+re-linking is needed: it moved on every tick even when nothing had changed, because re-running
+ingest reshuffled the physical row order. Two consecutive runs of `evaluate --source db` could also
+disagree in the low digits, and the writeprint cache could never reliably hit.
+
+Fixed with `ORDER BY posted_at NULLS LAST, id`. The evaluation figures are unchanged — they were
+computed from `--source fixtures`, which reads JSON in file order and was always deterministic.
+
+### "Re-link new personas only" is not achievable for S (Phase 5 artifact)
+
+The Phase 5 prompt asks the scheduler to re-run linking on new personas only. It cannot, and the
+reason is measurable rather than a matter of effort: the writeprint vectoriser fits its vocabulary
+over the whole corpus, so adding one persona changes every other persona's vector. Dropping one of
+the twenty fixture personas moves `S(1,16)` from 0.857399 to 0.849284 and `feature_version` from
+`sty-1:78f0f5d646ef` to `sty-1:74f21c4d161d` — which is exactly the guard `stylometry.load()` uses
+to refuse mixing vectors from two different fittings.
+
+Scoring only the new pairs would therefore leave `links` holding two incompatible scorings, with the
+older half silently disagreeing with `scripts/evaluate.py`. `scripts/scheduler.py` takes the saving
+where it is real instead: it compares the corpus fingerprint and **skips linking entirely when no
+new text arrived**, which is the common case for a polling job, and does a full consistent re-score
+when it did. Every tick reports which of the two happened and why.
+
+The genuine fix is a vocabulary fitted once and frozen, which changes what a writeprint means and
+belongs in `link/stylometry.py` with its own evaluation.
+
 ### JSONB does not preserve header order (Phase 3 schema addition)
 
 The banner rule scores 0.40 only when the product/version matches **and** the shared response headers

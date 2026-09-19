@@ -41,10 +41,32 @@ async function launch() {
 	);
 }
 
-async function textOf(page, url) {
-	await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 });
-	// The panels render after the client fetch resolves.
-	await page.waitForTimeout(1200);
+/**
+ * Load a page and return its rendered text, lowercased.
+ *
+ * `marker` is a string the page shows only once its client fetch has resolved.
+ * Waiting for it beats a fixed sleep: the dev server paints in well under a
+ * second and a container can take several, so any constant is either flaky or
+ * slow. `networkidle` is no good either — the shell polls service health, so
+ * the network never goes quiet.
+ *
+ * On timeout it returns whatever did render, so the check that follows fails
+ * with a readable diff instead of an exception.
+ */
+async function textOf(page, url, marker) {
+	await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+	if (marker) {
+		try {
+			await page.waitForFunction(
+				(needle) => document.body.innerText.toLowerCase().includes(needle),
+				marker.toLowerCase(),
+				{ timeout: 30_000 },
+			);
+		} catch {
+			/* fall through and let the assertion report what is actually there */
+		}
+	}
+	await page.waitForTimeout(400);
 	// Lowercased because several headings use text-transform: uppercase, and
 	// innerText returns what is rendered rather than what is in the markup.
 	return (await page.innerText("body")).toLowerCase();
@@ -66,13 +88,13 @@ try {
 	const vector = actors.find((a) => a.label === "Vect0rShop");
 
 	console.log("\nactors list");
-	const actorsText = await textOf(page, `${BASE}/actors`);
+	const actorsText = await textOf(page, `${BASE}/actors`, "Dr3adPirat3");
 	check("actor labels render", has(actorsText, "Dr3adPirat3"));
 	check("confidence bands render", has(actorsText, "CONFIRMED"));
 	check("a never-merged actor reads NOT MERGED, not WEAK", has(actorsText, "NOT MERGED"));
 
 	console.log("\nactor profile — unmeasured I");
-	const profile = await textOf(page, `${BASE}/actors/${merged[0].id}`);
+	const profile = await textOf(page, `${BASE}/actors/${merged[0].id}`, "not assessed");
 	check("component marked NOT ASSESSED", has(profile, "NOT ASSESSED"));
 	check(
 		"the I reason renders in full",
@@ -91,7 +113,7 @@ try {
 	check("provenance tag on identifiers", has(profile, "extracted from prose"));
 
 	console.log("\nactor profile — stylometry refusal");
-	const refused = await textOf(page, `${BASE}/actors/${refusedActor.id}`);
+	const refused = await textOf(page, `${BASE}/actors/${refusedActor.id}`, "stylometry refused");
 	check("refusal pill", has(refused, "STYLOMETRY REFUSED"));
 	check("refusal explained", has(refused, "Stylometry declined to score this persona"));
 	check("the floor is named", has(refused, "300-character floor"));
@@ -102,7 +124,7 @@ try {
 	// "declared only" tag stays in the UI for corpora that do carry such values;
 	// here there must be nothing left for it to mark.
 	console.log("\nno unreachable identifier reaches the screen");
-	const vectorPage = await textOf(page, `${BASE}/actors/${vector.id}`);
+	const vectorPage = await textOf(page, `${BASE}/actors/${vector.id}`, "same PGP fingerprint");
 	check(
 		"3~18 is evidenced on PGP, not the mirror onion",
 		has(vectorPage, "same PGP fingerprint") && !has(vectorPage, "same mirror onion"),
@@ -111,7 +133,7 @@ try {
 	check("and 3~18 is still CONFIRMED", has(vectorPage, "confirmed"));
 
 	console.log("\ngraph");
-	const graph = await textOf(page, `${BASE}/graph`);
+	const graph = await textOf(page, `${BASE}/graph`, "thickness = score");
 	check("graph legend renders", has(graph, "thickness = score"));
 	check("refused persona surfaced", has(graph, "refused by stylometry"));
 	const edges = await page.locator('svg[role="img"] line').count();
@@ -127,12 +149,12 @@ try {
 	}
 
 	console.log("\ntimeline");
-	const timeline = await textOf(page, `${BASE}/timeline`);
+	const timeline = await textOf(page, `${BASE}/timeline`, "busiest bucket");
 	check("chart renders", (await page.locator("svg").count()) > 0);
 	check("totals render", has(timeline, "posts") && /\d/.test(timeline));
 
 	console.log("\nexport");
-	const exportText = await textOf(page, `${BASE}/export`);
+	const exportText = await textOf(page, `${BASE}/export`, "I_reason");
 	check("reason columns offered", has(exportText, "I_reason"));
 	check("reason columns explained", has(exportText, "Keep the _reason columns"));
 	check("pipeline steps offered", has(exportText, "cluster"));

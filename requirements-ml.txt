@@ -1,0 +1,18 @@
+# requirements-ml.txt — optional GLiNER-backed entity extraction.
+#
+#   pip install -r requirements.txt -r requirements-ml.txt
+#
+# Only extract/gliner_extract.py uses any of this, and only when present: it
+# reports `the gliner package is not installed` and hands back to the regex
+# extractor otherwise, which is what tests/test_identifiers.py exercises. The
+# identifier recall reported in the README is from the regex path, so this
+# changes nothing about the published numbers.
+#
+# Expect ~3 GB installed: gliner pulls PyTorch transitively.
+
+transformers==4.41.2
+tokenizers==0.19.1
+huggingface_hub==0.23.5
+accelerate==0.30.1
+safetensors==0.4.3
+gliner==0.1.6

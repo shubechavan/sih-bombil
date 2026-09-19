@@ -1,55 +1,43 @@
-# # --- PyTorch (GPU CUDA 11.8) ---
-# torch==2.7.1
-# torchvision==0.18.1
-# torchaudio==2.7.1
+# requirements.txt — everything Dark Sentinel v2 actually imports.
+#
+# The GLiNER / HuggingFace stack is NOT here. It lives in requirements-ml.txt
+# because nothing in v2 imports it directly: extract/gliner_extract.py loads the
+# model dynamically through legacy/llm.py and falls back to the regex extractor
+# when it is absent, which is the path the fixture corpus and every test use.
+# Installing it pulls PyTorch — roughly 3 GB — for code the demo never executes,
+# so the container image and a fresh `pip install` do not pay for it.
+#
+#   pip install -r requirements.txt        # pipeline, API, reports, tests
+#   pip install -r requirements-ml.txt     # adds GLiNER-backed entity extraction
 
-# --- HuggingFace ---
-transformers==4.41.2
-tokenizers==0.19.1
-huggingface_hub==0.23.5
-accelerate==0.30.1
-datasets==2.19.1
-safetensors==0.4.3
-
-# --- GLiNER ---
-gliner==0.1.6
-
-# --- ML ---
-scikit-learn==1.6.1
-pandas==2.2.2
+# --- Numerics and graph ---
+scikit-learn==1.6.1      # char n-gram TF-IDF for writeprints
 numpy==1.26.4
-joblib==1.4.2
-networkx==3.6.1
+networkx==3.6.1          # components, evidence paths, transitive closure
+matplotlib==3.10.9       # link graph image in the PDF case report
 
-# --- Scraping ---
+# --- Scraping / recon ---
 requests==2.32.3
 beautifulsoup4==4.12.3
-stem==1.8.2
-PySocks==1.7.1
+PySocks==1.7.1           # SOCKS5 for requests, over Tor
+stem==1.8.2              # declared by v1; no module in this repo imports it
+mmh3==4.1.0              # Shodan-compatible favicon hashing
+cryptography==46.0.7     # reads TLS certs on https onions; never validates them
 
-# --- Recon (live path only; fixtures mode imports neither) ---
-# Shodan-compatible favicon hashing in recon/fingerprint.py.
-mmh3==4.1.0
-# TLS certificate parsing for https onions. Read-only: recon never validates a
-# certificate, it records the one the server presents to every visitor.
-cryptography==46.0.7
+# --- API ---
+fastapi==0.115.0
+uvicorn==0.30.6
 
+# --- Reporting ---
+reportlab==4.2.5         # PDF case report
+pypdf==5.1.0             # tests read the rendered PDF back out
 
-# --- App ---
-streamlit==1.35.0
-streamlit-autorefresh==1.0.1
-plotly==5.22.0
-
-# --- DB ---
+# --- Database ---
 sqlalchemy==2.0.30
 psycopg2-binary==2.9.9
 
+# --- Autonomous mode ---
+APScheduler==3.10.4
 
 # --- misc ---
 python-dotenv==1.0.1
-APScheduler==3.10.4
-
-
-
-fastapi==0.115.0
-uvicorn==0.30.6
