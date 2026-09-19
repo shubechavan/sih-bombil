@@ -4,16 +4,17 @@
 #   cp .env.example .env
 #
 #   docker compose up -d --build
-#   docker compose exec -T api python scripts/apply_schema.py
-#   docker compose exec -T api python scripts/load_fixtures.py --reset
-#   docker compose exec -T api python scripts/ingest.py --source fixtures
-#   docker compose exec -T api python -m link.resolve --source db
-#   docker compose exec -T api python -m link.cluster  --source db
+#   docker compose run --rm seed
 #
 # then: API on http://localhost:8000/docs, console on http://localhost:3000
 #
-# `seed` does all of the above for you — see the profile at the bottom:
-#   docker compose --profile seed up seed
+# `run --rm` rather than `up seed`: a one-shot service started with `up` leaves
+# its exited container behind, and `down -v` does not remove it because it sits
+# behind a profile — so the next `up seed` silently reuses the old container
+# and seeds nothing. `run --rm` always starts fresh and cleans up after itself.
+#
+# Tearing down: `docker compose --profile seed down -v`. Without the profile
+# flag the seed container survives the teardown.
 #
 # Autonomous mode is NOT a service here on purpose. It re-scans on a timer, and
 # a stack that starts crawling because somebody ran `up` is not one anybody
@@ -106,13 +107,15 @@ services:
 
   # ── one-shot: apply the schema and load the demo corpus ────────────────────
   #
-  #   docker compose --profile seed up seed
+  #   docker compose run --rm seed
   #
   # Behind a profile so `docker compose up` never rewrites a populated database
-  # as a side effect of starting the stack.
+  # as a side effect of starting the stack. Run it with `run --rm`, not
+  # `up seed` — see the header.
   seed:
     build: .
-    container_name: darksentinel-seed
+    # Deliberately no container_name: `run --rm` names its own container, and a
+    # fixed name collides with any leftover from a previous run.
     profiles: ["seed"]
     environment:
       PG_URL: postgresql://${PG_USER:-postgres}:${PG_PASSWORD:-darksentinel}@db:5432/${PG_DB:-darksentinel}

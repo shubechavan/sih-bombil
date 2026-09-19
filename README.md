@@ -278,18 +278,54 @@ the evidence of every row it produces.
 
 ## Quickstart
 
-### The whole stack, in one command
+### The whole stack, cold to all five pages
+
+Timed on the machine this was built on, with images already built. First run
+adds the build.
+
+| # | Command | Time | What you have after it |
+|---|---|---|---|
+| 0 | `cp .env.example .env` | instant | Compose can interpolate `${...}` |
+| 1 | `docker compose up -d --build` | **~6 min first time**, ~25 s after | postgres, tor, api, console running |
+| 2 | *(wait)* `curl -sf localhost:8000/health` | ~0–10 s | API answering; `ready:false`, no actors yet |
+| 3 | `docker compose run --rm seed` | **~20 s** | Schema, corpus, links, 14 actors, recon, and the evaluation printed |
+| 4 | Open <http://localhost:3000/actors> | instant | All five pages serving |
+
+**Total from `up` to five pages serving: 36 s** with images built; roughly seven
+minutes on a clean machine, almost all of it the two image builds.
+
+Step 3 prints the evaluation as it finishes — precision 1.000, recall 6/8,
+margin +0.508 — so the headline numbers are on screen before you open anything.
+
+Use `run --rm`, not `up seed`. A one-shot service started with `up` leaves its
+exited container behind, `down -v` will not remove it because of the profile,
+and the next run silently reuses it and seeds nothing. Tear down with
+`docker compose --profile seed down -v`.
+
+Two things that are deliberately *not* in that list: autonomous mode is not a
+service and must be started by hand, and Tor takes ~90 s to report healthy but
+nothing in the demo waits on it — the fixtures path never touches it.
 
 ```bash
+# the four commands, to copy
 cp .env.example .env
-docker compose up -d --build              # postgres + tor + api + console
-docker compose --profile seed up seed     # schema, corpus, link, cluster, recon, evaluate
+docker compose up -d --build
+docker compose run --rm seed
+open http://localhost:3000/actors        # or just browse to it
 ```
 
-API on <http://localhost:8000/docs>, console on <http://localhost:3000/actors>.
+Then, for the parts worth showing by hand:
 
-`seed` sits behind a profile so a plain `up` never rewrites a populated database as a side effect of
-starting the stack. Autonomous mode is deliberately **not** a service — see below.
+```bash
+docker compose exec api python scripts/evaluate.py --transitive           # 2 s — closure reaches 8/8
+docker compose exec api python scripts/evaluate.py --infra site-broadcast # 4 s — the counter-evidence
+docker compose exec api python -m export.report --all --out cases.pdf     # 4 s — the PDF case report
+docker compose exec api python scripts/scheduler.py --run-once            # 2 s — one autonomous tick
+docker compose cp api:/app/cases.pdf .                                    # bring the PDF out
+```
+
+Use a relative `--out`: on Git Bash an absolute `/tmp/...` is rewritten to a
+Windows path before Docker sees it, and the container then cannot find it.
 
 ### Offline — no database, no Tor, no network
 
