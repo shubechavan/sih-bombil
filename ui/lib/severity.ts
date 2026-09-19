@@ -14,15 +14,15 @@ import type { Severity } from "@/types/threat";
  */
 
 const THRESHOLDS: ReadonlyArray<readonly [Severity, number]> = [
-  ["CRITICAL", 0.8],
-  ["HIGH", 0.6],
-  ["MEDIUM", 0.3],
-  ["LOW", 0.0],
+	["CRITICAL", 0.8],
+	["HIGH", 0.6],
+	["MEDIUM", 0.3],
+	["LOW", 0.0],
 ];
 
 export function getSeverityFromScore(score: number): Severity {
-  for (const [severity, floor] of THRESHOLDS) {
-    if (score >= floor) return severity;
-  }
-  return "LOW";
+	for (const [severity, floor] of THRESHOLDS) {
+		if (score >= floor) return severity;
+	}
+	return "LOW";
 }

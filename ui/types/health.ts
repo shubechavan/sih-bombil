@@ -11,30 +11,30 @@
 export type ServiceState = "online" | "offline" | "degraded" | "checking";
 
 export interface ServiceStatus {
-  status: ServiceState;
-  detail?: string;
-  lastChecked?: number;
+	status: ServiceState;
+	detail?: string;
+	lastChecked?: number;
 }
 
 export interface HealthCheck {
-  api: ServiceStatus;
-  database: ServiceStatus;
-  pipeline: ServiceStatus;
+	api: ServiceStatus;
+	database: ServiceStatus;
+	pipeline: ServiceStatus;
 }
 
 export type ServiceName = keyof HealthCheck;
 
 export const SERVICE_LABELS: Record<ServiceName, string> = {
-  api: "API",
-  database: "PostgreSQL",
-  pipeline: "Pipeline",
+	api: "API",
+	database: "PostgreSQL",
+	pipeline: "Pipeline",
 };
 
 /** The shape api/main.py:health() returns. */
 export interface BackendHealthPayload {
-  status?: string;
-  database?: string;
-  ready?: boolean;
-  hint?: string | null;
-  counts?: Record<string, number>;
+	status?: string;
+	database?: string;
+	ready?: boolean;
+	hint?: string | null;
+	counts?: Record<string, number>;
 }

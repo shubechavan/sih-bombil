@@ -192,7 +192,6 @@ export function ForceGraph({
 							key={node.id}
 							transform={`translate(${node.x ?? 0}, ${node.y ?? 0})`}
 							className={styles.node}
-							// biome-ignore lint/a11y/useSemanticElements: as above, inside SVG.
 							role={onSelectNode ? "button" : undefined}
 							tabIndex={onSelectNode ? 0 : undefined}
 							onClick={() => onSelectNode?.(node)}

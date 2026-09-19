@@ -8,8 +8,8 @@
  */
 
 export const NAV_ITEMS = [
-  { href: "/actors", label: "Actors", icon: "Users" },
-  { href: "/graph", label: "Link Graph", icon: "Share2" },
-  { href: "/timeline", label: "Timeline", icon: "CalendarRange" },
-  { href: "/export", label: "Export", icon: "Download" },
+	{ href: "/actors", label: "Actors", icon: "Users" },
+	{ href: "/graph", label: "Link Graph", icon: "Share2" },
+	{ href: "/timeline", label: "Timeline", icon: "CalendarRange" },
+	{ href: "/export", label: "Export", icon: "Download" },
 ] as const;

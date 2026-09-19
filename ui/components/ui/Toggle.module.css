@@ -1,54 +1,54 @@
 .wrapper {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-2);
-  cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--ds-space-2);
+	cursor: pointer;
 }
 
 .track {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  background: var(--ds-surface-3);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-pill);
-  transition:
-    background var(--ds-duration-fast) var(--ds-ease),
-    border-color var(--ds-duration-fast) var(--ds-ease);
+	position: relative;
+	width: 36px;
+	height: 20px;
+	background: var(--ds-surface-3);
+	border: 1px solid var(--ds-border);
+	border-radius: var(--ds-radius-pill);
+	transition: background var(--ds-duration-fast) var(--ds-ease), border-color
+		var(--ds-duration-fast) var(--ds-ease);
 }
 
 .track[data-checked="true"] {
-  background: var(--ds-accent-bg);
-  border-color: var(--ds-accent);
+	background: var(--ds-accent-bg);
+	border-color: var(--ds-accent);
 }
 
 .thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  background: var(--ds-text-tertiary);
-  border-radius: 50%;
-  transition: transform var(--ds-duration-fast) var(--ds-ease), background var(--ds-duration-fast) var(--ds-ease);
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 14px;
+	height: 14px;
+	background: var(--ds-text-tertiary);
+	border-radius: 50%;
+	transition: transform var(--ds-duration-fast) var(--ds-ease), background var(--ds-duration-fast)
+		var(--ds-ease);
 }
 
 .track[data-checked="true"] .thumb {
-  transform: translateX(16px);
-  background: var(--ds-accent);
+	transform: translateX(16px);
+	background: var(--ds-accent);
 }
 
 .label {
-  font-family: var(--ds-font-display);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--ds-text-secondary);
+	font-family: var(--ds-font-display);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--ds-text-secondary);
 }
 
 .input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
 }

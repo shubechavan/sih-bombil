@@ -8,10 +8,7 @@ export async function GET() {
 		});
 
 		if (!res.ok) {
-			return NextResponse.json(
-				{ error: "Backend health check failed" },
-				{ status: res.status },
-			);
+			return NextResponse.json({ error: "Backend health check failed" }, { status: res.status });
 		}
 
 		const data = await res.json();

@@ -1,102 +1,94 @@
 "use client";
 
-import { useState } from "react";
+import {
+	CalendarRange,
+	ChevronLeft,
+	ChevronRight,
+	Download,
+	LayoutDashboard,
+	Share2,
+	Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Play,
-  Shield,
-  BarChart3,
-  Eye,
-  Bell,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Workflow,
-  Fingerprint,
-  Activity,
-  Users,
-  Share2,
-  CalendarRange,
-  Download,
-} from "lucide-react";
+import { useEffect, useState } from "react";
 import styles from "./NavRail.module.css";
 
+// Only what NAV_ITEMS names, plus LayoutDashboard as the fallback below.
 const ICONS: Record<string, React.ElementType> = {
-  LayoutDashboard,
-  Play,
-  Shield,
-  BarChart3,
-  Eye,
-  Bell,
-  Settings,
-  Workflow,
-  Fingerprint,
-  Activity,
-  Users,
-  Share2,
-  CalendarRange,
-  Download,
+	Users,
+	Share2,
+	CalendarRange,
+	Download,
 };
 
 interface NavItem {
-  href: string;
-  label: string;
-  icon: string;
+	href: string;
+	label: string;
+	icon: string;
 }
 
 interface NavRailProps {
-  items: readonly NavItem[];
-  mobileOpen?: boolean;
-  onMobileClose?: () => void;
+	items: readonly NavItem[];
+	mobileOpen?: boolean;
+	onMobileClose?: () => void;
 }
 
 export function NavRail({ items, mobileOpen, onMobileClose }: NavRailProps) {
-  const [expanded, setExpanded] = useState(false);
-  const pathname = usePathname();
+	const [expanded, setExpanded] = useState(false);
+	const pathname = usePathname();
 
-  return (
-    <>
-      {mobileOpen && (
-        <div className={styles.backdrop} onClick={onMobileClose} />
-      )}
-      <nav
-        className={styles.rail}
-        data-expanded={expanded}
-        data-open={mobileOpen}
-      >
-        {items.map((item) => {
-          const Icon = ICONS[item.icon] ?? LayoutDashboard;
-          const active =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+	// Escape closes the mobile drawer. Clicking the backdrop already does, and a
+	// drawer a keyboard user cannot dismiss is a trap.
+	useEffect(() => {
+		if (!mobileOpen || !onMobileClose) return;
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key === "Escape") onMobileClose();
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [mobileOpen, onMobileClose]);
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={styles.navItem}
-              data-active={active}
-              onClick={onMobileClose}
-            >
-              <span className={styles.iconWrap}>
-                <Icon size={18} />
-              </span>
-              <span className={styles.label}>{item.label}</span>
-            </Link>
-          );
-        })}
+	return (
+		<>
+			{mobileOpen && (
+				<button
+					type="button"
+					className={styles.backdrop}
+					onClick={onMobileClose}
+					aria-label="Close navigation"
+				/>
+			)}
+			<nav className={styles.rail} data-expanded={expanded} data-open={mobileOpen}>
+				{items.map((item) => {
+					const Icon = ICONS[item.icon] ?? LayoutDashboard;
+					const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
-        <button
-          className={styles.expandBtn}
-          onClick={() => setExpanded(!expanded)}
-          aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
-        >
-          {expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-        </button>
-      </nav>
-    </>
-  );
+					return (
+						<Link
+							key={item.href}
+							href={item.href}
+							className={styles.navItem}
+							data-active={active}
+							onClick={onMobileClose}
+						>
+							<span className={styles.iconWrap}>
+								<Icon size={18} />
+							</span>
+							<span className={styles.label}>{item.label}</span>
+						</Link>
+					);
+				})}
+
+				<button
+					type="button"
+					className={styles.expandBtn}
+					onClick={() => setExpanded(!expanded)}
+					aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
+				>
+					{expanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+				</button>
+			</nav>
+		</>
+	);
 }
