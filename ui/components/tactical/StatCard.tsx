@@ -22,7 +22,19 @@ export function StatCard({ label, value, severity, delta, icon: Icon, onClick }:
 			onClick={onClick}
 			role={onClick ? "button" : undefined}
 			tabIndex={onClick ? 0 : undefined}
-			onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
+			// A native button activates on both Enter and Space. Handling only
+			// Enter makes this look operable and behave like half a control;
+			// Space also needs preventDefault or it scrolls the page instead.
+			onKeyDown={
+				onClick
+					? (e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								onClick();
+							}
+						}
+					: undefined
+			}
 		>
 			<div className={styles.row}>
 				<span className={styles.label}>{label}</span>

@@ -75,7 +75,9 @@ export default function GraphPage() {
 					}
 				>
 					{error ? (
-						<p className={styles.error}>{error}</p>
+						<p className={styles.error} role="alert">
+							{error}
+						</p>
 					) : (
 						payload && (
 							<ForceGraph

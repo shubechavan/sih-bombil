@@ -156,7 +156,12 @@ export function ForceGraph({
 		<svg
 			className={styles.svg}
 			viewBox={`0 0 ${width} ${height}`}
-			role="img"
+			// role="group", not role="img". An image is a single opaque thing,
+			// so declaring one and then putting focusable edges inside it is a
+			// contradiction — axe reports it as nested-interactive. This graph is
+			// genuinely both a picture and a set of controls, and group is the
+			// role that admits that.
+			role="group"
 			aria-label={`Persona link graph: ${positionedNodes.length} personas, ${positionedEdges.length} attribution links${
 				drawnTrust.length > 0
 					? `, and ${drawnTrust.length} dashed shared-buyer relationships which carry no score`

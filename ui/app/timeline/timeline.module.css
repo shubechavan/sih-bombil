@@ -58,8 +58,11 @@
 	font-size: 0.72rem;
 	font-family: var(--ds-font-mono, monospace);
 }
-.date:focus {
-	outline: none;
+.date:focus-visible {
+	/* Was `outline: none` with only a border-colour change, which is a
+	   colour-only focus cue and defeats the global :focus-visible ring. */
+	outline: 2px solid var(--ds-border-active);
+	outline-offset: 1px;
 	border-color: var(--ds-border-active, #4da3ff);
 }
 .empty,

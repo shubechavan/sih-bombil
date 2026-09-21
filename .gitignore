@@ -13,3 +13,9 @@ runtime/
 
 # ObfusLex builds this term cache on import (legacy/obfuslex_engine.py).
 obfus_hashes.db
+
+# Build and test caches that were committed by accident. Both confuse CI:
+# tsbuildinfo makes tsc skip files it thinks are unchanged, and .pytest_cache
+# carries a previous run's node ids.
+.pytest_cache/
+ui/tsconfig.tsbuildinfo

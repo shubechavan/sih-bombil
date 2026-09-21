@@ -15,6 +15,8 @@
  *   node scripts/verify-pages.mjs [baseUrl]
  */
 
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { chromium } from "playwright-core";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
@@ -170,10 +172,10 @@ try {
 	const graph = await textOf(page, `${BASE}/graph`, "thickness = score");
 	check("graph legend renders", has(graph, "thickness = score"));
 	check("refused persona surfaced", has(graph, "refused by stylometry"));
-	const edges = await page.locator('svg[role="img"] line').count();
+	const edges = await page.locator('svg[role="group"] line').count();
 	check("edges drawn", edges > 0, `${edges} edges`);
 	if (edges > 0) {
-		await page.locator('svg[role="img"] line').first().click({ force: true });
+		await page.locator('svg[role="group"] line').first().click({ force: true });
 		await page.waitForTimeout(400);
 		const afterClick = (await page.innerText("body")).toLowerCase();
 		check(
@@ -192,9 +194,9 @@ try {
 		has(graph, "context, not a score") || has(graph, "no effect on any score"),
 	);
 	check("with the measured reason on screen", has(graph, "0.389") && has(graph, "chance"));
-	const dashed = await page.locator('svg[role="img"] line[stroke-dasharray]').count();
+	const dashed = await page.locator('svg[role="group"] line[stroke-dasharray]').count();
 	check("drawn dashed, not solid", dashed > 0, `${dashed} dashed edges`);
-	const solid = await page.locator('svg[role="img"] line:not([stroke-dasharray])').count();
+	const solid = await page.locator('svg[role="group"] line:not([stroke-dasharray])').count();
 	check(
 		"and distinguishable from attribution edges",
 		solid > 0 && dashed !== solid,
@@ -218,6 +220,88 @@ try {
 	check("reason columns offered", has(exportText, "I_reason"));
 	check("reason columns explained", has(exportText, "Keep the _reason columns"));
 	check("pipeline steps offered", has(exportText, "cluster"));
+	// ── accessibility ────────────────────────────────────────────────────────
+	// Keyboard and structure first, then axe. Axe reports what it can see in the
+	// DOM; it cannot tell you whether a drawer traps focus or whether Tab
+	// actually reaches the submit button, and those are the failures that make a
+	// page unusable rather than merely imperfect.
+
+	console.log("\naccessibility — keyboard");
+	await page.goto(`${BASE}/actors`, { waitUntil: "domcontentloaded" });
+	await page.waitForTimeout(600);
+
+	await page.keyboard.press("Tab");
+	const firstStop = await page.evaluate(() => document.activeElement?.textContent?.trim());
+	check("skip link is the first tab stop", firstStop === "Skip to content", String(firstStop));
+
+	check(
+		"the active nav item is announced, not just coloured",
+		(await page.locator('a[href="/actors"][aria-current="page"]').count()) === 1,
+	);
+	check("the nav rail is labelled", (await page.locator("nav[aria-label]").count()) > 0);
+
+	console.log("\naccessibility — the mobile drawer at 768px");
+	await page.setViewportSize({ width: 768, height: 900 });
+	await page.goto(`${BASE}/actors`, { waitUntil: "domcontentloaded" });
+	await page.waitForTimeout(800);
+
+	check(
+		"no horizontal scroll at 768px",
+		await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
+	);
+
+	const toggle = page.locator('button[aria-label="Toggle navigation"]');
+	check("the menu toggle is shown at 768px", await toggle.isVisible());
+	await toggle.focus();
+	await toggle.click();
+	await page.waitForTimeout(500);
+
+	const insideRail = () =>
+		page.evaluate(() => {
+			const rail = document.querySelector("nav.app-layout__nav");
+			return Boolean(rail?.contains(document.activeElement));
+		});
+
+	check("opening the drawer moves focus into it", await insideRail());
+
+	// Tab past the last item — focus must wrap rather than land on the page
+	// underneath, which the user cannot see.
+	for (let i = 0; i < 12; i++) await page.keyboard.press("Tab");
+	check("focus stays inside the open drawer", await insideRail());
+
+	await page.keyboard.press("Escape");
+	await page.waitForTimeout(500);
+	check(
+		"Escape closes the drawer and restores focus to the toggle",
+		await page.evaluate(
+			() => document.activeElement?.getAttribute("aria-label") === "Toggle navigation",
+		),
+	);
+	await page.setViewportSize({ width: 1400, height: 900 });
+
+	console.log("\naccessibility — axe");
+	const axeSource = readFileSync(createRequire(import.meta.url).resolve("axe-core"), "utf8");
+	for (const path of ["/actors", "/analyze", "/graph", "/timeline", "/export", "/audit"]) {
+		await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded" });
+		await page.waitForTimeout(1500);
+		await page.evaluate(axeSource);
+		const violations = await page.evaluate(async () => {
+			// Serious and critical only. The moderate rules are largely advisory and
+			// a suite that fails on them gets muted rather than fixed.
+			const result = await window.axe.run(document, {
+				resultTypes: ["violations"],
+				runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] },
+			});
+			return result.violations
+				.filter((v) => v.impact === "serious" || v.impact === "critical")
+				.map((v) => `${v.id} x${v.nodes.length}`);
+		});
+		check(
+			`axe: ${path} has no serious or critical violations`,
+			violations.length === 0,
+			violations.join(", "),
+		);
+	}
 } finally {
 	await browser.close();
 }

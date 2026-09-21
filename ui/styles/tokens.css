@@ -39,11 +39,26 @@
   --ds-info-bg: rgba(96, 165, 250, 0.16);
 
   /* Text */
-  --ds-text-primary: #e6edf8;
-  --ds-text-secondary: #9fb0c8;
-  --ds-text-tertiary: #6f84a3;
-  --ds-text-muted: #7f93b2;
+  /* Contrast ratios below are measured against the four surfaces these sit on
+     — void #050914, surface-0 #0b1224, surface-1 #111b34, surface-2 #162542 —
+     and quoted worst-first. Everything here clears WCAG AA (4.5:1) on all four,
+     because this UI renders 0.58rem labels and none of it qualifies as large
+     text. Check the worst number, not the best, before changing one. */
+  --ds-text-primary: #e6edf8;    /* 12.95:1 */
+  --ds-text-secondary: #9fb0c8;  /*  6.91:1 */
+  /* Was #6f84a3, which measured 4.48:1 on surface-1 and 4.00:1 on surface-2 —
+     under AA on both, on the panel backgrounds most of the small print uses. */
+  --ds-text-tertiary: #7d92b0;   /*  4.80:1 */
+  --ds-text-muted: #7f93b2;      /*  4.88:1 */
   --ds-text-inverse: #081227;
+
+  /* These two are referenced by ~90 declarations across the page-level CSS
+     modules and were never defined, so every one of them silently fell through
+     to its hardcoded fallback: #6b7280 for dim, which measures 3.15:1 on
+     surface-2 and fails AA on all four surfaces. Defining them here fixes every
+     call site at once and makes the fallbacks unreachable. */
+  --ds-text-dim: var(--ds-text-tertiary);
+  --ds-text: var(--ds-text-primary);
 
   /* Borders */
   --ds-border: rgba(148, 163, 184, 0.28);

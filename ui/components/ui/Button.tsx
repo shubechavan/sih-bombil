@@ -25,6 +25,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 			icon,
 			children,
 			className,
+			type,
 			...props
 		},
 		ref,
@@ -59,7 +60,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 		})();
 
 		return (
-			<button ref={ref} className={classes} disabled={disabled || loading} {...props}>
+			// `type` defaults to "submit" in HTML, so any <Button> that ends up
+			// inside a <form> submits it unless told otherwise. Default to
+			// "button" and let a real submit opt in.
+			<button
+				ref={ref}
+				type={type ?? "button"}
+				className={classes}
+				disabled={disabled || loading}
+				{...props}
+			>
 				{loading && <span className={styles.spinner} />}
 				{iconNode}
 				{children}

@@ -144,7 +144,9 @@ export default function ActorDetailPage({ params }: { params: { id: string } }) 
 				<Link href="/actors" className={styles.back}>
 					<ArrowLeft size={14} /> All actors
 				</Link>
-				<p className={styles.error}>{error}</p>
+				<p className={styles.error} role="alert">
+					{error}
+				</p>
 			</div>
 		);
 	}

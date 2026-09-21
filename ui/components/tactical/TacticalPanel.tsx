@@ -31,7 +31,10 @@ export function TacticalPanel({
 	children,
 }: TacticalPanelProps) {
 	return (
-		<section className={styles.panel} data-severity={severity}>
+		// aria-busy tells a screen reader the region is mid-update. Skeleton
+		// itself is aria-hidden, so without this the panel simply goes quiet
+		// and a user has no way to know something is coming.
+		<section className={styles.panel} data-severity={severity} aria-busy={loading}>
 			<header className={styles.header}>
 				<div className={styles.heading}>
 					{icon && <span className={styles.icon}>{icon}</span>}

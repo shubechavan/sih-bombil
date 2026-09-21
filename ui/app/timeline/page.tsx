@@ -121,7 +121,9 @@ export default function TimelinePage() {
 				}
 			>
 				{error ? (
-					<p className={styles.error}>{error}</p>
+					<p className={styles.error} role="alert">
+						{error}
+					</p>
 				) : (
 					<ChartShell title="Posts per bucket" empty={buckets.length === 0}>
 						<ResponsiveContainer width="100%" height={300}>
