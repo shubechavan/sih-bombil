@@ -1,7 +1,7 @@
 # DEMO — cue card
 
-Terminal **≥ 110 columns**. Browser at <http://localhost:3000>. Total ~6 min,
-or ~8 with the live crawl (step 7).
+Terminal **≥ 110 columns**. Browser at <http://localhost:3000>. Total ~7 min,
+or ~9 with the live crawl (step 8).
 
 ---
 
@@ -67,7 +67,35 @@ Browser → **`/actors/7`** (paperghost)
 > redistributed — not scored with a number from two sentences. And it reads NOT
 > MERGED, not WEAK: WEAK would mean we compared it and weren't convinced."
 
-## 5 · **The site-broadcast moment** — 60 s
+## 5 · Text from the room — 60 s
+
+The one step they can drive. Ask someone to paste anything — their own email, a
+paragraph off a news site, a vendor bio from step 3.
+
+Browser → **`/analyze`**
+
+> "Everything so far is us showing you our answer key. This takes text we have
+> never seen. Paste whatever you like."
+
+Then paste one persona's own prose back in (copy it from `/actors/1`):
+
+> "Now watch the control. That's Dr3adPirat3's own text, and it comes back at
+> S = 1.000 against Dr3adPirat3 — which only happens if we are really
+> vectorising your paste, not looking anything up. Underneath it: BlackSailsRX
+> at 0.857 and Dread_P1rate at 0.762. Same actor, three handles on three
+> different markets, and nothing in what I pasted contained a single identifier.
+> That is stylometry and posting rhythm alone."
+
+Then paste two sentences:
+
+> "Under 300 characters it refuses, exactly like paperghost. Same floor, same
+> sentence, and it still ranks on behaviour rather than throwing the paste away."
+
+Worth saying if nobody asks: **the vocabulary is never refitted on their text.**
+It is transformed against the fit that built the stored writeprints, so their
+paste cannot move anyone else's number.
+
+## 6 · **The site-broadcast moment** — 60 s
 
 ```bash
 docker compose exec api python scripts/evaluate.py --infra site-broadcast
@@ -88,7 +116,7 @@ docker compose exec api python scripts/evaluate.py --infra site-broadcast
 
 Close: *"So the I term stays unmeasured. That's a result, not a gap."*
 
-## 6 · Buyer feedback, and not using it — 30 s
+## 7 · Buyer feedback, and not using it — 30 s
 
 Browser → **`/graph`** → point at the **dashed grey edges**
 
@@ -101,7 +129,7 @@ Browser → **`/graph`** → point at the **dashed grey edges**
 
 If challenged: `docker compose exec api python -m link.trust --measure`
 
-## 7 · Live collection over Tor — 90 s
+## 8 · Live collection over Tor — 90 s
 
 Only if the lab is already up (`docker compose --profile lab up -d`) and Tor has
 bootstrapped. **Otherwise skip it** — the numbers in step 1 are the argument.
@@ -118,7 +146,7 @@ python scripts/collect.py --onion http://<that>.onion --verify
 > line for line — which is how we know the collector isn't quietly losing
 > anything."
 
-## 8 · Recon and the report — 45 s
+## 9 · Recon and the report — 45 s
 
 ```bash
 docker compose exec api python -m recon.correlate --source fixtures --dry-run
@@ -166,6 +194,9 @@ Browser → **`/export`** → Download PDF (or show one prepared):
 Scroll up in step 1's output to show it — `[PASS] 2~20 … 0.242 WEAK`, with the
 reason the corpus gives printed underneath.
 
+If what they actually mean is *"is this canned?"*, that is step 5. Hand them the
+keyboard.
+
 ---
 
 ## If it breaks
@@ -173,17 +204,20 @@ reason the corpus gives printed underneath.
 | Symptom | Do this |
 |---|---|
 | **Terminal < 108 cols** | `evaluate.py` warns you. Widen it, or `... > /tmp/e.txt` and open the file. Prose wraps fine at any width; only the tables need the room. |
-| **Docker slow / still building** | Skip Docker entirely: `python scripts/evaluate.py` runs offline with no database and no network. Steps 1, 2, 5 all work this way. |
+| **Docker slow / still building** | Skip Docker entirely: `python scripts/evaluate.py` runs offline with no database and no network. Steps 1, 2 and 6 all work this way. Step 5 needs the stack — it is the only one that does. |
 | **A page 500s or hangs** | `curl -s localhost:8000/health`. `ready:false` → `docker compose run --rm seed`. No response → `docker compose restart api`, wait 15 s. |
 | **`/actors` is empty** | Clustering hasn't run: `docker compose exec api python -m link.cluster --source db` (5 s). |
 | **Console blank / won't load** | `docker compose restart ui`, wait 20 s. Fall back to the API: <http://localhost:8000/docs> has every endpoint with live responses. |
 | **Everything is broken** | `docker compose --profile seed down -v && docker compose up -d && docker compose run --rm seed` — 45 s from nothing. |
 | **No Docker at all** | `pip install -r requirements.txt && python scripts/evaluate.py`. The headline numbers need nothing else. |
-| **The lab onion won't resolve** | Tor needs the real network and a few minutes to publish the descriptor: `docker compose --profile lab logs lab-tor \| grep Bootstrapped`. Not at 100% → **skip step 7**. It is the only step that needs the internet. |
-| **Step 7 crawl hangs** | Ctrl-C and skip it. Nothing else depends on it, and step 1 already ran offline. |
+| **The lab onion won't resolve** | Tor needs the real network and a few minutes to publish the descriptor: `docker compose --profile lab logs lab-tor \| grep Bootstrapped`. Not at 100% → **skip step 8**. It is the only step that needs the internet. |
+| **`/analyze` returns 503** | The fitted vocabulary is not stored for the current corpus version. `docker compose exec api python -m link.resolve --source db` writes it, and the vectors come back bit-identical. |
+| **Step 8 crawl hangs** | Ctrl-C and skip it. Nothing else depends on it, and step 1 already ran offline. |
 
-**Fallback order if time runs out:** step 1 → step 5 → step 3. Those three are
-the whole argument. Steps 6 and 7 are the Phase 6 material; drop them first.
+**Fallback order if time runs out:** step 1 → step 5 → step 6 → step 3. Those four
+are the whole argument — the numbers, that the numbers are live, the evidence,
+and the one moment the engine argues against itself. Steps 7 and 8 are the Phase
+6 material; drop them first.
 
 ---
 
@@ -194,8 +228,9 @@ the whole argument. Steps 6 and 7 are the Phase 6 material; drop them first.
 | precision / recall | 1.000 at every band / 6 of 8 pairwise, 8 of 8 with closure |
 | separation margin | +0.508 → +0.287 under site-broadcast |
 | corpus | 20 personas, 3 sources, 200 posts, 14 actors — matches the answer key exactly |
-| tests | 330 Python, 34 browser checks |
+| tests | 360 Python, 34 browser checks |
 | the crawl | 20 personas, 200 posts, 33 requests, 74 s — all 424 fields byte-identical |
 | shared buyers | ROC-AUC 0.389, worse than chance — measured, then not used |
 | the floor | 300 characters; paperghost has 152 |
+| the live paste | a persona's own text returns S 1.000 against itself, then 0.857 and 0.762 for its two other handles — with no identifier in the paste |
 | 3~18 | CONFIRMED 0.909 on PGP alone |
