@@ -94,6 +94,7 @@ __all__ = [
     "TRADE_LEXICON",
     "Behaviour",
     "BehaviourSet",
+    "blend",
     "build",
     "smooth_circular",
 ]
@@ -174,6 +175,41 @@ def _trade_vector(text: str) -> np.ndarray:
                     dtype=np.float64)
 
 
+def blend(parts: Mapping[str, float],
+          *, omit: Sequence[str] = ()) -> Optional[float]:
+    """Combine the sub-signals into B, over the ones actually measured.
+
+    `omit` names sub-signals the caller could not assess — not ones that scored
+    badly. The distinction matters because `_jaccard` of two empty category sets
+    returns 0.0, a *measured* zero worth 0.20 of B. For two personas in the
+    corpus that zero is right: both have categories and they do not overlap. For
+    text pasted into /analyze with no category supplied it is the "we did not
+    look" -> "we looked and found nothing" error that `Component` exists to
+    prevent one level up, so the weight is redistributed over what remains
+    instead, mirroring RENORMALISE_UNMEASURED in score/attribution.py.
+
+    With `omit=()` — every existing caller — this is the expression it replaces,
+    weight for weight. Returns None when nothing is left to measure.
+    """
+    active = {
+        name: weight for name, weight in SUBSIGNAL_WEIGHTS.items()
+        if name not in set(omit)
+    }
+    if not active:
+        return None
+
+    divisor = sum(active.values())
+    if divisor <= 0:
+        return None
+
+    total = sum(weight * parts[name] for name, weight in active.items())
+    # Only renormalise when something was dropped; the full set already sums to
+    # 1.0 and dividing by it would be a no-op with a rounding step attached.
+    if len(active) != len(SUBSIGNAL_WEIGHTS):
+        total /= divisor
+    return float(np.clip(total, 0.0, 1.0))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Results
 # ─────────────────────────────────────────────────────────────────────────────
@@ -228,15 +264,18 @@ class BehaviourSet:
             "day_of_week": _cosine(left.day_histogram, right.day_histogram),
         }
 
-    def similarity(self, a: int, b: int) -> Optional[float]:
-        """The blended B term, or None if either persona has no activity."""
+    def similarity(self, a: int, b: int,
+                   *, omit: Sequence[str] = ()) -> Optional[float]:
+        """The blended B term, or None if either persona has no activity.
+
+        `omit` names sub-signals that could not be assessed for this pair — see
+        `blend()`. The default omits nothing, which is what every pair drawn
+        from the corpus wants.
+        """
         parts = self.components(a, b)
         if parts is None:
             return None
-        return float(np.clip(
-            sum(SUBSIGNAL_WEIGHTS[name] * value for name, value in parts.items()),
-            0.0, 1.0,
-        ))
+        return blend(parts, omit=omit)
 
     def explain(self, a: int, b: int) -> list[str]:
         """Plain-language reasons, for the evidence list."""

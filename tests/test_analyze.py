@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from db import MIN_STYLOMETRY_CHARS  # noqa: E402
+from link import behaviour as behaviour_module  # noqa: E402
 from link import stylometry as stylometry_module  # noqa: E402
 from link.resolve import load_corpus_from_fixtures  # noqa: E402
 
@@ -309,3 +310,109 @@ def test_load_vocabulary_ignores_other_versions(db):
     """Same discipline as `load()`: a different version is absent, not close."""
     with db() as session:
         assert stylometry_module.load_vocabulary(session, "sty-0:deadbeefcafe") is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# B over the sub-signals that were actually measured
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_blend_default_is_the_arithmetic_the_engine_already_used():
+    """`omit=()` must be byte-identical to the old expression.
+
+    This is the guard on the refactor. Every existing call site takes the
+    default, so if this drifts, every stored B drifts with it.
+    """
+    parts = {
+        "posting_hours": 0.8581920990542636,
+        "category": 1.0,
+        "trade_vocabulary": 0.4142135623730951,
+        "day_of_week": 0.7071067811865476,
+    }
+    expected = sum(
+        behaviour_module.SUBSIGNAL_WEIGHTS[name] * value
+        for name, value in parts.items()
+    )
+    assert behaviour_module.blend(parts) == pytest.approx(expected, abs=1e-12)
+
+
+def test_existing_pairs_keep_their_b_scores(built):
+    """The corpus's own B values, through the refactored path."""
+    behaviours = behaviour_module.build(built["corpus"].posts)
+
+    # Measured on this corpus before `blend` existed. If one of these moves,
+    # the refactor leaked into the pipeline.
+    for (a, b), expected in {
+        (1, 16): 0.8581920990542636,
+        (1, 9): 0.901969204391682,
+        (2, 10): 0.8553799469405856,
+        (3, 18): 0.7953147256761104,
+        (4, 19): 0.8192586111086938,
+    }.items():
+        assert behaviours.similarity(a, b) == pytest.approx(expected, abs=1e-9), (
+            f"pair {a}~{b}: B moved"
+        )
+
+
+def test_omitting_a_subsignal_redistributes_rather_than_scores_zero():
+    """An unsupplied category must not be counted as a category mismatch.
+
+    `_jaccard` of two empty sets is 0.0 — a *measured* zero worth 0.20 of B.
+    Pasted text with no category supplied has not been looked at, so its weight
+    is redistributed over the sub-signals that were.
+    """
+    parts = {
+        "posting_hours": 0.9,
+        "category": 0.0,       # not supplied, not a mismatch
+        "trade_vocabulary": 0.5,
+        "day_of_week": 0.6,
+    }
+
+    naive = behaviour_module.blend(parts)
+    honest = behaviour_module.blend(parts, omit=("category",))
+
+    assert honest > naive, (
+        "omitting an unmeasured sub-signal must not be worse than scoring it 0"
+    )
+
+    remaining = {"posting_hours": 0.70, "trade_vocabulary": 0.05, "day_of_week": 0.05}
+    divisor = sum(remaining.values())
+    expected = sum(w * parts[k] for k, w in remaining.items()) / divisor
+    assert honest == pytest.approx(expected, abs=1e-12)
+
+
+def test_omitting_everything_is_refused_not_zero():
+    """Nothing measured is None, the same answer the rest of the engine gives."""
+    parts = {k: 0.5 for k in behaviour_module.SUBSIGNAL_WEIGHTS}
+    assert behaviour_module.blend(parts, omit=tuple(parts)) is None
+
+
+def test_omit_does_not_touch_the_weights_table():
+    """The preset is shared module state; renormalising must not mutate it."""
+    before = dict(behaviour_module.SUBSIGNAL_WEIGHTS)
+    behaviour_module.blend(
+        {k: 0.5 for k in before}, omit=("category", "day_of_week")
+    )
+    assert behaviour_module.SUBSIGNAL_WEIGHTS == before
+
+
+def test_behaviour_can_be_built_from_timestamps_alone(built):
+    """What /analyze does: a pseudo-persona with no database row."""
+    from datetime import datetime  # noqa: PLC0415
+
+    pasted = {
+        -1: [
+            {"posted_at": datetime(2024, 3, 2, 22, 14), "body": "escrow only, "
+             "multisig preferred, stealth shipping as always", "category": None},
+            {"posted_at": datetime(2024, 3, 3, 23, 41), "body": "", "category": None},
+            {"posted_at": datetime(2024, 3, 4, 21, 8), "body": "", "category": None},
+        ]
+    }
+    profiles = behaviour_module.build(pasted)
+    assert profiles.get(-1) is not None
+    assert profiles.get(-1).post_count == 3
+    assert profiles.get(-1).trade_terms, "the pasted body's trade terms were lost"
+
+    merged = behaviour_module.build({**built["corpus"].posts, **pasted})
+    parts = merged.components(-1, 1)
+    assert parts is not None
+    assert merged.similarity(-1, 1, omit=("category",)) is not None
