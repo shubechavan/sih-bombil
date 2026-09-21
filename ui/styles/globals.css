@@ -113,6 +113,31 @@ a:hover {
   border-width: 0;
 }
 
+/* The skip link. Visually hidden until focused, then it is the first thing on
+   screen — a keyboard user should not have to tab the whole nav rail to reach
+   the content. .sr-only alone would keep it invisible while focused, which is
+   the mistake that makes skip links useless. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--ds-space-3);
+  z-index: var(--ds-z-toast);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  border: 1px solid var(--ds-border-active);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-surface-2);
+  color: var(--ds-text-primary);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: top var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.skip-link:focus-visible {
+  top: var(--ds-space-3);
+  outline: 2px solid var(--ds-border-active);
+  outline-offset: 2px;
+}
+
 /* ═══ App Layout ═══ */
 .app-layout {
   display: grid;

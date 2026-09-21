@@ -1,13 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { backendUrl } from "../../_backend";
+import { authHeader } from "../../_session";
 
 /**
  * Catch-all proxy to the FastAPI attribution API.
  *
- * One handler rather than seven, because every attribution endpoint is a plain
- * read that needs the same treatment: forward the query string, never cache,
- * and pass the backend's own error detail through so a 404 on an actor reads as
- * "no actor 7" in the UI instead of a generic failure.
+ * One handler rather than seven, because every attribution endpoint needs the
+ * same treatment: forward the query string, attach the session token from the
+ * httpOnly cookie, never cache, and pass the backend's own error detail through
+ * so a 404 on an actor reads as "no actor 7" in the UI instead of a generic
+ * failure.
+ *
+ * Attaching the token here is what keeps it out of the browser. The page fetches
+ * `/api/attribution/...` with no credentials of its own; this handler is the
+ * only thing that can read the cookie and the only thing that talks to FastAPI.
  *
  * Export responses are streamed back with their Content-Disposition intact so
  * the browser downloads a file rather than rendering CSV as text.
@@ -16,6 +22,7 @@ import { backendUrl } from "../../_backend";
 const ALLOWED = [
 	"actors",
 	"analyze",
+	"audit",
 	"graph",
 	"timeline",
 	"recon",
@@ -43,7 +50,10 @@ export async function GET(request: NextRequest, context: { params: { path: strin
 	const search = request.nextUrl.search;
 
 	try {
-		const res = await fetch(backendUrl(`${target}${search}`), { cache: "no-store" });
+		const res = await fetch(backendUrl(`${target}${search}`), {
+			headers: authHeader(request),
+			cache: "no-store",
+		});
 		const contentType = res.headers.get("content-type") ?? "";
 
 		if (contentType.includes("application/json")) {
@@ -83,7 +93,7 @@ export async function POST(request: NextRequest, context: { params: { path: stri
 	try {
 		const res = await fetch(backendUrl(`/${segments.map(encodeURIComponent).join("/")}`), {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: { "content-type": "application/json", ...authHeader(request) },
 			body: await request.text(),
 			cache: "no-store",
 		});

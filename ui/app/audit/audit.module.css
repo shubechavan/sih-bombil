@@ -1,0 +1,151 @@
+.page {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ds-space-5);
+}
+
+.header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ds-space-2);
+}
+
+.title {
+	margin: 0;
+	font-family: var(--ds-font-display);
+	font-size: 1.5rem;
+	font-weight: 600;
+	color: var(--ds-text-primary);
+}
+
+.lede {
+	margin: 0;
+	max-width: 78ch;
+	font-size: 0.82rem;
+	line-height: 1.6;
+	color: var(--ds-text-secondary);
+}
+
+.filters {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--ds-space-4);
+	flex-wrap: wrap;
+}
+
+.counts {
+	font-size: 0.78rem;
+	color: var(--ds-text-secondary);
+}
+
+.error {
+	margin: 0;
+	padding: var(--ds-space-3) var(--ds-space-4);
+	border: 1px solid var(--ds-severity-critical-border, var(--ds-border));
+	border-radius: var(--ds-radius-md);
+	background: var(--ds-severity-critical-bg, transparent);
+	color: var(--ds-severity-critical);
+	font-size: 0.85rem;
+}
+
+.tableWrap {
+	overflow-x: auto;
+}
+
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.78rem;
+}
+
+.table th {
+	text-align: left;
+	padding: var(--ds-space-2) var(--ds-space-3);
+	border-bottom: 1px solid var(--ds-border);
+	font-size: 0.68rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--ds-text-secondary);
+	white-space: nowrap;
+}
+
+.table td {
+	padding: var(--ds-space-2) var(--ds-space-3);
+	border-bottom: 1px solid var(--ds-border-subtle);
+	color: var(--ds-text-primary);
+	vertical-align: top;
+}
+
+.table tbody tr:hover {
+	background: var(--ds-surface-1);
+}
+
+.mono {
+	font-family: var(--ds-font-mono);
+}
+
+.when {
+	white-space: nowrap;
+	color: var(--ds-text-secondary);
+}
+
+.query {
+	color: var(--ds-text-secondary);
+}
+
+.hash {
+	font-family: var(--ds-font-mono);
+	color: var(--ds-text-secondary);
+}
+
+.status {
+	display: inline-block;
+	padding: 1px 7px;
+	border-radius: var(--ds-radius-pill);
+	border: 1px solid var(--ds-border);
+	font-family: var(--ds-font-mono);
+	font-size: 0.72rem;
+}
+
+.status[data-kind="ok"] {
+	color: var(--ds-accent);
+	border-color: var(--ds-border-hover);
+}
+
+/* A refused request is the most interesting row in an audit table. It gets the
+   same weight as a failure, not the quiet treatment. */
+.status[data-kind="denied"] {
+	color: var(--ds-severity-high);
+	border-color: var(--ds-severity-high-border, var(--ds-border));
+}
+
+.status[data-kind="warn"] {
+	color: var(--ds-severity-medium);
+}
+
+.status[data-kind="bad"] {
+	color: var(--ds-severity-critical);
+	border-color: var(--ds-severity-critical-border, var(--ds-border));
+}
+
+.err {
+	display: block;
+	margin-top: 2px;
+	max-width: 40ch;
+	color: var(--ds-severity-critical);
+}
+
+.empty {
+	margin: 0;
+	font-size: 0.82rem;
+	color: var(--ds-text-secondary);
+}
+
+@media (max-width: 768px) {
+	.filters {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}

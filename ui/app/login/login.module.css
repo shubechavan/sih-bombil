@@ -1,0 +1,104 @@
+.page {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	padding: var(--ds-space-5);
+	background: var(--ds-void);
+}
+
+.card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ds-space-4);
+	width: 100%;
+	max-width: 380px;
+	padding: var(--ds-space-7);
+	border: 1px solid var(--ds-glass-border);
+	border-radius: var(--ds-radius-lg);
+	background: var(--ds-glass-heavy);
+}
+
+.brand {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mark {
+	font-family: var(--ds-font-display);
+	font-size: 1.05rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	color: var(--ds-text-primary);
+}
+
+.sub {
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ds-text-secondary);
+}
+
+.lede {
+	margin: 0;
+	font-size: 0.78rem;
+	line-height: 1.6;
+	color: var(--ds-text-secondary);
+	padding-bottom: var(--ds-space-2);
+	border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ds-space-1);
+}
+
+.field label {
+	font-size: 0.72rem;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--ds-text-secondary);
+}
+
+.input {
+	width: 100%;
+	padding: var(--ds-space-3);
+	border: 1px solid var(--ds-border);
+	border-radius: var(--ds-radius-md);
+	background: var(--ds-surface-1);
+	color: var(--ds-text-primary);
+	font-family: var(--ds-font-mono);
+	font-size: 0.9rem;
+}
+
+.input:focus-visible {
+	outline: 2px solid var(--ds-border-active);
+	outline-offset: 1px;
+	border-color: var(--ds-accent);
+}
+
+.error {
+	margin: 0;
+	padding: var(--ds-space-3);
+	border: 1px solid var(--ds-severity-critical-border, var(--ds-border));
+	border-radius: var(--ds-radius-md);
+	background: var(--ds-severity-critical-bg, transparent);
+	color: var(--ds-severity-critical);
+	font-size: 0.8rem;
+	line-height: 1.5;
+}
+
+.submit {
+	margin-top: var(--ds-space-2);
+	width: 100%;
+	justify-content: center;
+}
+
+@media (max-width: 768px) {
+	.card {
+		padding: var(--ds-space-5);
+	}
+}

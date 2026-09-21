@@ -18,6 +18,11 @@
 import { chromium } from "playwright-core";
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
+
+//: The seeded demo admin. Overridable so this can run against a deployment
+//: whose passwords are not the documented defaults.
+const OPERATOR = process.env.VERIFY_OPERATOR ?? "admin";
+const PASSWORD = process.env.VERIFY_PASSWORD ?? "admin-demo";
 const CHANNELS = ["msedge", "chrome"];
 
 const checks = [];
@@ -77,12 +82,41 @@ function has(haystack, needle) {
 	return haystack.includes(needle.toLowerCase());
 }
 
+/**
+ * Sign in and keep the session for the rest of the run.
+ *
+ * Since Phase 7 every page but /login requires an operator, so the checks below
+ * would otherwise all assert against the login screen. Admin, because the audit
+ * checks need it. Returns the cookie header so the direct `fetch` calls in this
+ * script can use the same session the browser has.
+ */
+async function signIn(context, page) {
+	await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+	await page.locator("input[autocomplete='username']").fill(OPERATOR);
+	await page.locator("input[autocomplete='current-password']").fill(PASSWORD);
+	await page.click('button[type="submit"]');
+	// A Next soft navigation fires no `load` event, so waitForURL would hang.
+	await page.waitForFunction(() => !location.pathname.startsWith("/login"), undefined, {
+		timeout: 45_000,
+	});
+	const cookies = await context.cookies();
+	return cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+}
+
 const browser = await launch();
-const page = await browser.newPage();
+const context = await browser.newContext();
+const page = await context.newPage();
 
 try {
+	const cookieHeader = await signIn(context, page);
+	check("an operator can sign in", !page.url().includes("/login"), page.url());
+
 	// Which actor holds the refused persona?
-	const actors = await (await fetch(`${BASE}/api/attribution/actors?limit=500`)).json();
+	const actors = await (
+		await fetch(`${BASE}/api/attribution/actors?limit=500`, {
+			headers: { cookie: cookieHeader },
+		})
+	).json();
 	const refusedActor = actors.find((a) => a.handles.includes("paperghost"));
 	const merged = actors.filter((a) => a.persona_count > 1);
 	const vector = actors.find((a) => a.label === "Vect0rShop");

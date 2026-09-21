@@ -234,6 +234,51 @@ export interface AnalyseRequest {
 	limit?: number;
 }
 
+/** Who is signed in, and what this role may do. From GET /auth/me. */
+export interface Identity {
+	username: string;
+	role: "analyst" | "admin";
+	can_scan: boolean;
+	can_read_audit: boolean;
+}
+
+export interface AuditRow {
+	id: number;
+	operator_id: string;
+	role: string | null;
+	method: string;
+	path: string;
+	query: string | null;
+	status: number | null;
+	action_hash: string | null;
+	at: string | null;
+}
+
+export interface AuditScanRow {
+	id: number;
+	operator_id: string | null;
+	mode: string | null;
+	data_source: string | null;
+	query: string | null;
+	status: string | null;
+	personas_new: number | null;
+	links_new: number | null;
+	action_hash: string | null;
+	job_id: string | null;
+	started_at: string | null;
+	finished_at: string | null;
+	error: string | null;
+}
+
+export interface AuditPage {
+	requests: AuditRow[];
+	scans: AuditScanRow[];
+	total_requests: number;
+	total_scans: number;
+	operators: string[];
+	note: string;
+}
+
 export const BANDS: Band[] = ["CONFIRMED", "PROBABLE", "POSSIBLE", "WEAK"];
 
 /** The engine refuses stylometry below this many characters of masked prose. */

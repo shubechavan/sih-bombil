@@ -7,6 +7,7 @@ import {
 	Download,
 	LayoutDashboard,
 	ScanSearch,
+	ScrollText,
 	Share2,
 	Users,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const ICONS: Record<string, React.ElementType> = {
 	CalendarRange,
 	Download,
 	ScanSearch,
+	ScrollText,
 };
 
 interface NavItem {
@@ -61,7 +63,16 @@ export function NavRail({ items, mobileOpen, onMobileClose }: NavRailProps) {
 					aria-label="Close navigation"
 				/>
 			)}
-			<nav className={styles.rail} data-expanded={expanded} data-open={mobileOpen}>
+			{/* `app-layout__nav` is the grid placement and the 768px drawer
+			    behaviour, both of which live in globals.css. Without it this
+			    auto-places into grid row 1 and pushes the main column down the
+			    page, and the mobile drawer rules never apply. */}
+			<nav
+				className={`app-layout__nav ${styles.rail}`}
+				aria-label="Sections"
+				data-expanded={expanded}
+				data-open={mobileOpen}
+			>
 				{items.map((item) => {
 					const Icon = ICONS[item.icon] ?? LayoutDashboard;
 					const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

@@ -1,17 +1,26 @@
 "use client";
 
 import { Tooltip } from "@/components/ui";
+import type { Identity } from "@/lib/attribution";
 import type { ServiceStatus } from "@/types/health";
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import styles from "./CommandBar.module.css";
 
 interface CommandBarProps {
 	threatLevel?: "critical" | "high" | "medium" | "low";
 	services?: Record<string, ServiceStatus>;
 	onMenuToggle?: () => void;
+	identity?: Identity | null;
+	onSignOut?: () => void;
 }
 
-export function CommandBar({ threatLevel = "low", services, onMenuToggle }: CommandBarProps) {
+export function CommandBar({
+	threatLevel = "low",
+	services,
+	onMenuToggle,
+	identity,
+	onSignOut,
+}: CommandBarProps) {
 	return (
 		<header className={styles.bar}>
 			<div className={styles.left}>
@@ -41,9 +50,28 @@ export function CommandBar({ threatLevel = "low", services, onMenuToggle }: Comm
 					<div className={styles.services}>
 						{Object.entries(services).map(([name, svc]) => (
 							<Tooltip key={name} content={`${name}: ${svc.status}`}>
-								<span className={styles.serviceDot} data-status={svc.status} />
+								{/* The dot is colour-only, so carry the state in text for
+								    anyone who cannot see or hover it. */}
+								<span className={styles.serviceDot} data-status={svc.status}>
+									<span className="sr-only">{`${name}: ${svc.status}`}</span>
+								</span>
 							</Tooltip>
 						))}
+					</div>
+				)}
+				{identity && (
+					<div className={styles.operator}>
+						{/* Whose name is on every audit row this session writes. */}
+						<span className={styles.operatorName}>{identity.username}</span>
+						<span className={styles.operatorRole}>{identity.role}</span>
+						<button
+							type="button"
+							className={styles.signOut}
+							onClick={onSignOut}
+							aria-label={`Sign out ${identity.username}`}
+						>
+							<LogOut size={16} aria-hidden="true" />
+						</button>
 					</div>
 				)}
 			</div>
