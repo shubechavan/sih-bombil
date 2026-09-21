@@ -9,12 +9,18 @@ or ~9 with the live crawl (step 8).
 
 ```bash
 cp .env.example .env
-docker compose up -d --build       # 6 min cold, 25 s after
-docker compose run --rm seed       # 20 s
-curl -s localhost:8000/health      # want: "ready":true, "actors":14
+docker compose up -d --build         # 6 min cold, 25 s after
+docker compose run --rm --build seed # 25 s
+curl -s localhost:8000/health        # want: "ready":true, "actors":14
 ```
 
 `run --rm`, **not** `up seed` — `up` reuses a dead container and seeds nothing.
+And `--build` on the seed too: `seed` sits behind a profile, so the `--build` on
+the line above skips it and `run` will happily use an image from before your last
+code change.
+
+Sign in as **admin / admin-demo** (or analyst / analyst-demo — that one cannot
+start a pipeline run or open the audit log, which is worth showing).
 
 ---
 
@@ -211,6 +217,8 @@ keyboard.
 | **Everything is broken** | `docker compose --profile seed down -v && docker compose up -d && docker compose run --rm seed` — 45 s from nothing. |
 | **No Docker at all** | `pip install -r requirements.txt && python scripts/evaluate.py`. The headline numbers need nothing else. |
 | **The lab onion won't resolve** | Tor needs the real network and a few minutes to publish the descriptor: `docker compose --profile lab logs lab-tor \| grep Bootstrapped`. Not at 100% → **skip step 8**. It is the only step that needs the internet. |
+| **The seed fails on a missing file** | The seed image is stale — it is behind a profile, so plain `up --build` does not rebuild it. `docker compose run --rm --build seed`. |
+| **Login says invalid username or password** | The accounts are created by the seed step. `docker compose run --rm --build seed`, or `docker compose exec api python scripts/seed_users.py`. |
 | **`/analyze` returns 503** | The fitted vocabulary is not stored for the current corpus version. `docker compose exec api python -m link.resolve --source db` writes it, and the vectors come back bit-identical. |
 | **Step 8 crawl hangs** | Ctrl-C and skip it. Nothing else depends on it, and step 1 already ran offline. |
 
