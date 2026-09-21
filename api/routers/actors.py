@@ -27,6 +27,7 @@ from api.queries import (  # noqa: E402
     link_summaries,
     persona_summaries,
     posts_for,
+    trust_edges_for,
 )
 from api.schemas import (  # noqa: E402
     ActorDetail,
@@ -37,6 +38,15 @@ from api.schemas import (  # noqa: E402
 from db import Actor, Persona, PersonaIdentifier, Post, band_for  # noqa: E402
 
 router = APIRouter(tags=["actors"])
+
+#: Shown beside the trust edges on the profile. The text is the point: an
+#: overlap number on an actor page without it reads as corroboration.
+TRUST_NOTE = (
+    "Shared buyers between this actor's vendors and others. Relationship "
+    "context only — measured against ground truth, buyer overlap separates "
+    "true pairs from false ones worse than chance (ROC-AUC 0.389), so it is "
+    "not part of this actor's confidence and never merged anyone."
+)
 
 __all__ = ["router"]
 
@@ -192,11 +202,15 @@ def collect_actor_detail(session, actor_id: int, *,
     identifier_counts = {pid: len(identifiers.get(pid, [])) for pid in persona_ids}
     base = _summary(row, {actor_id: members}, identifier_counts)
 
+    trust = trust_edges_for(session, persona_ids)
+
     return ActorDetail(
         **base.model_dump(),
         notes=row.notes,
         personas=details,
         links=links,
+        trust_edges=trust,
+        trust_note=TRUST_NOTE if trust else "",
         timeline=[
             TimelineBucket(bucket=key, posts=buckets[key],
                            personas=len(persona_buckets.get(key, ())))

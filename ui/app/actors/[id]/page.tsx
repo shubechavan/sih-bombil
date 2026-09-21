@@ -209,6 +209,31 @@ export default function ActorDetailPage({ params }: { params: { id: string } }) 
 				)}
 			</TacticalPanel>
 
+			{actor && actor.trust_edges.length > 0 && (
+				<TacticalPanel
+					title="Shared buyers"
+					subtitle={`${actor.trust_edges.length} vendor pair(s) — relationship context, not evidence`}
+				>
+					{/* The caption sits above the rows on purpose. An overlap
+					    figure on an actor profile reads as corroboration unless
+					    the page says, before the numbers, that it is not. */}
+					<p className={styles.trustNote}>{actor.trust_note}</p>
+					<ul className={styles.trustList}>
+						{actor.trust_edges.map((edge) => (
+							<li key={`${edge.persona_a}-${edge.persona_b}`}>
+								<div className={styles.trustHead}>
+									<strong>
+										{edge.handle_a} ~ {edge.handle_b}
+									</strong>
+									<span className={styles.trustCount}>{edge.shared_count} shared</span>
+								</div>
+								<span className={styles.trustDetail}>{edge.detail}</span>
+							</li>
+						))}
+					</ul>
+				</TacticalPanel>
+			)}
+
 			{actor && actor.timeline.length > 0 && (
 				<TacticalPanel title="Activity" subtitle="posts per month">
 					<div className={styles.timeline}>

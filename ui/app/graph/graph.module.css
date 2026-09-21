@@ -91,6 +91,53 @@
 	margin-left: auto;
 	opacity: 0.8;
 }
+
+/* Dashed and grey, matching the SVG stroke: whatever a shared-buyer edge looks
+   like in the drawing is what it has to look like in the key. */
+.swTrust {
+	background: repeating-linear-gradient(
+		90deg,
+		var(--ds-text-muted, #8b93a5) 0 2px,
+		transparent 2px 7px
+	);
+}
+.trustToggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	cursor: pointer;
+}
+.trustToggle input {
+	accent-color: var(--ds-text-muted, #8b93a5);
+}
+.trustNote {
+	margin: 0 0 0.75rem;
+	font-size: 0.78rem;
+	line-height: 1.6;
+	color: var(--ds-text-muted, #9aa3b2);
+}
+.trustList {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+.trustList li {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	font-size: 0.78rem;
+	line-height: 1.5;
+}
+.trustList strong {
+	font-weight: 600;
+	color: var(--ds-text, #e6e9ef);
+}
+.trustList span {
+	color: var(--ds-text-muted, #9aa3b2);
+}
 .detail {
 	display: flex;
 	flex-direction: column;

@@ -18,6 +18,7 @@ export default function GraphPage() {
 	const [payload, setPayload] = useState<GraphPayload | null>(null);
 	const [minScore, setMinScore] = useState(0.45);
 	const [selected, setSelected] = useState<GraphEdge | null>(null);
+	const [showTrust, setShowTrust] = useState(true);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -80,6 +81,7 @@ export default function GraphPage() {
 							<ForceGraph
 								nodes={payload.nodes}
 								edges={payload.edges}
+								trustEdges={showTrust ? payload.trust_edges : []}
 								selectedEdge={selected}
 								onSelectEdge={setSelected}
 							/>
@@ -101,6 +103,17 @@ export default function GraphPage() {
 						<span className={styles.legendNote}>
 							thickness = score · dashed ring = stylometry refused
 						</span>
+						{payload && payload.trust_edges.length > 0 && (
+							<label className={styles.trustToggle}>
+								<input
+									type="checkbox"
+									checked={showTrust}
+									onChange={(e) => setShowTrust(e.target.checked)}
+								/>
+								<i className={styles.swTrust} /> shared buyers ({payload.trust_edges.length}) —
+								context, not a score
+							</label>
+						)}
 					</div>
 				</TacticalPanel>
 
@@ -126,6 +139,28 @@ export default function GraphPage() {
 							</p>
 						)}
 					</TacticalPanel>
+
+					{/* Shown whenever the edges are drawn. A dashed line on a link
+					    graph reads as a weak link unless something says otherwise,
+					    and here it means the opposite: measured and rejected. */}
+					{showTrust && payload && payload.trust_edges.length > 0 && (
+						<TacticalPanel
+							title="Shared buyers"
+							subtitle={`${payload.trust_edges.length} vendor pair(s) — no effect on any score`}
+						>
+							<p className={styles.trustNote}>{payload.trust_note}</p>
+							<ul className={styles.trustList}>
+								{payload.trust_edges.slice(0, 8).map((edge) => (
+									<li key={`${edge.persona_a}-${edge.persona_b}`}>
+										<strong>
+											{edge.handle_a} ~ {edge.handle_b}
+										</strong>
+										<span>{edge.detail}</span>
+									</li>
+								))}
+							</ul>
+						</TacticalPanel>
+					)}
 
 					{refused.length > 0 && (
 						<RefusalNotice

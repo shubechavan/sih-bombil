@@ -148,6 +148,32 @@ try {
 		);
 	}
 
+	// A shared-buyer edge that renders like an attribution edge is worse than
+	// one that does not render at all: the whole point of the measurement was
+	// that this signal must never read as corroboration.
+	console.log("\nshared buyers are context, not score");
+	check("trust edges are in the legend", has(graph, "shared buyers"));
+	check(
+		"and labelled as not a score",
+		has(graph, "context, not a score") || has(graph, "no effect on any score"),
+	);
+	check("with the measured reason on screen", has(graph, "0.389") && has(graph, "chance"));
+	const dashed = await page.locator('svg[role="img"] line[stroke-dasharray]').count();
+	check("drawn dashed, not solid", dashed > 0, `${dashed} dashed edges`);
+	const solid = await page.locator('svg[role="img"] line:not([stroke-dasharray])').count();
+	check(
+		"and distinguishable from attribution edges",
+		solid > 0 && dashed !== solid,
+		`${solid} solid / ${dashed} dashed`,
+	);
+
+	const actorTrust = await textOf(page, `${BASE}/actors/1`, "shared buyers");
+	check("the actor profile lists them too", has(actorTrust, "shared buyers"));
+	check(
+		"under a caption that says they do not count",
+		has(actorTrust, "not part of this actor") || has(actorTrust, "relationship context"),
+	);
+
 	console.log("\ntimeline");
 	const timeline = await textOf(page, `${BASE}/timeline`, "busiest bucket");
 	check("chart renders", (await page.locator("svg").count()) > 0);

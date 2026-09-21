@@ -1,0 +1,13 @@
+{
+  "fixtures/clearnet_obs/shodan_observations.json": "d239de87404e1af1f3152dd2ac95a3bf2de4254ee7fd6702433c099328c724a8",
+  "fixtures/forum_beta/personas.json": "fc1d73e5cec5e2ac3e2fd44b486f93bab682e6518c06f9b29bb39866011a95f0",
+  "fixtures/forum_beta/posts.json": "1fdd575dfba2d159cecd259e937ca0c42c7ba766e0eeb6bdfca672f6d8096705",
+  "fixtures/ground_truth.json": "e87e8cbb95e578d7339b4f0e3be9cbe5497caeab7fdb209cbddaf3f4f1c62b52",
+  "fixtures/infra_findings.json": "0faeb4b3741a28eec60c7c26149ad770df44ca4859ef7513693b89de06c9d87f",
+  "fixtures/market_alpha/personas.json": "5210a5d809e84116b49adbb1f9cdb85ebd7d357e21172583ce851ea44c5b098d",
+  "fixtures/market_alpha/posts.json": "82a91e95a0c699c1fdc0f43f47dae93c453a9b55da02b855d05b122878112b2a",
+  "fixtures/market_gamma/personas.json": "191cf649a2f9c82096b7f1383b6c967a36ec8ce4d80c3941a74f1021b82f9086",
+  "fixtures/market_gamma/posts.json": "196408185af2015cefbab368f2ebf88102ec3c518271165287b3ebed2475497e",
+  "fixtures/pgp_blocks.json": "7cd5732efe4d602e8ba52ef85298da0a70d8213a0006a70e1690120e38aa5cb8",
+  "fixtures/sources.json": "3460cebfe858d5845da27f10ac4de51c3a5b1edef5d4964072e85068d1155a09"
+}

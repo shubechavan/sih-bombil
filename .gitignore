@@ -10,3 +10,6 @@ runtime/
 
 # Generated case reports
 *.pdf
+
+# ObfusLex builds this term cache on import (legacy/obfuslex_engine.py).
+obfus_hashes.db

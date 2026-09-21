@@ -22,6 +22,7 @@ from api.schemas import (  # noqa: E402
     LinkSummary,
     PersonaSummary,
     PostSample,
+    TrustEdge,
 )
 from db import (  # noqa: E402
     Identifier as IdentifierRow,
@@ -40,7 +41,13 @@ __all__ = [
     "persona_summaries",
     "posts_for",
     "source_names",
+    "trust_edges_for",
 ]
+
+
+#: Mirrors link.trust.MIN_SHARED_BUYERS. A display threshold, nothing branches
+#: on it.
+TRUST_MIN_SHARED = 2
 
 
 def source_names(session) -> dict[int, str]:
@@ -201,3 +208,25 @@ def link_summaries(session, *, persona_ids: Optional[Sequence[int]] = None,
         )
         for row in rows
     ]
+
+
+def trust_edges_for(session, persona_ids: Optional[Sequence[int]] = None,
+                    *, min_shared: int = TRUST_MIN_SHARED) -> list[TrustEdge]:
+    """Buyer-mediated vendor relationships, as context rows.
+
+    `link/trust.py` owns the computation and the argument for why it is not a
+    score; this only converts. With `persona_ids`, keeps edges with at least
+    one end inside that set — an actor profile wants the vendors its personas
+    share buyers with, which by definition are mostly outside the actor.
+    """
+    from link.trust import NOT_A_SCORE, trust_edges  # noqa: PLC0415
+
+    wanted = set(persona_ids) if persona_ids is not None else None
+    rows = []
+    for edge in trust_edges(session, min_shared=min_shared):
+        if wanted is not None and not ({edge.persona_a, edge.persona_b} & wanted):
+            continue
+        payload = edge.to_dict()
+        payload["note"] = NOT_A_SCORE
+        rows.append(TrustEdge(**payload))
+    return rows

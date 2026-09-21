@@ -367,6 +367,90 @@ when it did. Every tick reports which of the two happened and why.
 The genuine fix is a vocabulary fitted once and frozen, which changes what a writeprint means and
 belongs in `link/stylometry.py` with its own evaluation.
 
+### Shared-buyer overlap is not an identity signal (Phase 6 artifact)
+
+Phase 6 added buyer feedback to the corpus and asked whether a shared buyer set
+between two vendor personas should feed the attribution score. It should not,
+and the measurement is unambiguous at every plausible parameter value.
+
+Shared-buyer overlap, as Jaccard over each vendor's buyer set, across the 78
+pairs among the 13 personas that have any feedback — the population where the
+signal exists at all. (Over all 190 pairs it reads 0.475, but only because the
+112 pairs with no feedback on either side tie at zero; that is a coverage
+number, not a discrimination one. `python -m link.trust --measure` prints both.)
+
+| | true positives | non-positives |
+|---|---|---|
+| mean overlap | 0.0250 | 0.0852 |
+| ROC-AUC | **0.389** (0.5 is a coin flip) | |
+| strongest overlap of all | — | 0.444, pairs (1,4) and (18,20) |
+
+Non-positives score **3.4x higher** than true positives, and three of the four
+measurable true pairs share no buyer at all. Every high-overlap pair is
+same-market — (1,4) and (3,4) on alpha, (18,20) on gamma — because vendors on
+one market draw from one customer pool. The signal tracks the marketplace, not
+the trader, which is the `--infra site-broadcast` failure mode exactly: it
+would reward strangers who share a landlord and punish the migrations, since a
+vendor who moves market gets a new customer base.
+
+Note also that only **4 of the 8** true positives are measurable at all: the
+other four involve forum_beta, which has no listings and therefore no feedback.
+
+**The measurement cannot settle the question on its own, and that is the more
+important finding.** Feedback is generated, so its usefulness is whatever the
+generator encoded. Sweeping `CROSS_MARKET_LOYALTY` in `scripts/gen_fixtures.py`:
+
+| loyalty | 0.00 | 0.15 (shipped) | 0.30 | 0.50 | 0.75 | 1.00 |
+|---|---|---|---|---|---|---|
+| ROC-AUC | 0.318 | 0.389 | 0.601 | 0.601 | 0.927 | 1.000 |
+
+At 1.00 the signal is perfect, because the generator was told to make it so.
+This is unlike stylometry, where the generator plants writing quirks and
+measuring recovers them — a real test of the extractor. Here a measurement
+recovers a constant somebody chose. So the decision rests on the argument, and
+the numbers only confirm it holds at every loyalty a real market would produce:
+buyers do not follow a vendor across a migration in the three-quarters needed
+to make this work, and if they did, the migration would be obvious by other
+means.
+
+Trust links are therefore stored in their own `feedback` table, shown on the
+actor profile and in the graph as relationship context, and never summed into
+A. Buyers are handles on a feedback row and never `personas`, so the 190 pairs
+and every published figure are untouched by construction.
+
+### Recon had never met a live certificate (Phase 6 artifact)
+
+Phase 6 pointed `recon/fingerprint.py` at the lab hidden service — the first time any of it touched
+a real server rather than reading JSON. Two bugs surfaced in the first minute, and both were
+structurally invisible to the fixtures path, which loads `tls_serial` and `tls_sans` out of a file
+and so never executes the code that reads them off a socket.
+
+**Self-signed certificates were refused before they could be read.** `_probe` issued its GETs
+through `requests` with default verification, so every `https://` onion failed at the handshake and
+the certificate we came to look at was never seen. `fetch_tls` had always been explicit about not
+validating — the docstring says so — but the HTTP probe beside it was not, and the result was a
+fingerprint with every field empty and a misconfig score of 0.000. A v3 onion address *is* a public
+key: Tor authenticates the endpoint end-to-end before TLS begins, so certificate validation adds no
+assurance on a hidden service and only prevents reading. Now `verify=False`, matching what the TLS
+reader had been doing deliberately all along.
+
+**`format(serial, "X")` silently shortened serials.** The lab serves `0F3A9C1D77B54E2A`; we read it
+back as `F3A9C1D77B54E2A` and compared that against a Shodan observation carrying the padded form.
+The `tls_serial` match is the 1.00-weight signal — the strongest in the entire correlation rubric —
+and it would never have fired against real data. Serials are byte strings and both Shodan and
+Censys print them padded to whole bytes; we now do the same.
+
+Underneath both sat a third problem worth naming: `fetch_tls` ended in a bare
+`except Exception: return {}`. Best-effort was the right behaviour — most onions speak plain HTTP —
+but it made a genuine bug (an `AttributeError`, because `get_values_for_type` returns plain strings
+and the code read `.value` off them) indistinguishable from "this host has no TLS". It now prints
+the reason it gave up.
+
+The lesson generalises past this repo: a fixtures path that supplies a parser's *output* never
+exercises the parser. The lab exists so that stops being true.
+
+---
+
 ### JSONB does not preserve header order (Phase 3 schema addition)
 
 The banner rule scores 0.40 only when the product/version matches **and** the shared response headers
@@ -395,6 +479,13 @@ it, and both `--source` modes now return the same 13 candidates.
 | 3 | Recon module + clearnet correlation | Fingerprint report per onion, correlation candidates listed |
 | 4 | FastAPI + Next.js UI: actor list, profile, graph, timeline, export | Click actor → see graph → export CSV/JSON/PDF |
 | 5 | Autonomous mode (APScheduler), audit log, polish, PPT | Scheduler runs, report PDF generated |
+| 6 | Lab hidden service, collectors over Tor, buyer feedback | Crawl the lab onion → same numbers as fixtures mode |
+
+Phase 6 was not in the original five. It was added because, measured against the problem statement,
+collection was the missing half: no collectors existed, recon had never touched a real onion, and
+the scheduler had nothing live to scan. Its ship criterion is deliberately the harshest one
+available — a crawled corpus must score **identically** to the offline one, line for line, because
+any loss in the collector shows up as a moved score and nothing else would catch it.
 
 Do **not** build the UI first. It is tempting because it demos well, but with no linking engine
 you'll spend phase 4 rewriting API contracts.

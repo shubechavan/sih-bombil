@@ -1,0 +1,29 @@
+# lab/Dockerfile.tor — publishes the lab as a Tor v3 onion service.
+#
+# Separate from the `tor` service in docker-compose.yml, which is the *client*
+# SOCKS proxy the collectors dial out through. This one is the *server* side:
+# it runs a tor daemon whose only job is to publish lab:8080 as a hidden
+# service. Two daemons rather than one because the roles are genuinely
+# different — mixing them would mean the thing we crawl and the thing we crawl
+# with share a process, and a crawl that only works because both ends are the
+# same daemon has proved nothing about crawling over Tor.
+#
+# The onion address is generated on first boot into a named volume, so it
+# survives `docker compose down` and the address you demo with stays the same.
+# Delete the volume to roll a new one.
+
+FROM alpine:3.20
+
+RUN apk add --no-cache tor
+
+COPY lab/torrc /etc/tor/torrc
+
+# Tor refuses to start if HiddenServiceDir is group- or world-readable — it is
+# where the service's private key lives. 0700 and owned by the tor user.
+RUN mkdir -p /var/lib/tor/lab_hs \
+ && chown -R tor:tor /var/lib/tor \
+ && chmod 700 /var/lib/tor/lab_hs
+
+USER tor
+
+CMD ["tor", "-f", "/etc/tor/torrc"]

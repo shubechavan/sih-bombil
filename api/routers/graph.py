@@ -22,7 +22,11 @@ from fastapi import APIRouter, Depends, Query  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from api.deps import get_session  # noqa: E402
-from api.queries import link_summaries, persona_summaries  # noqa: E402
+from api.queries import (  # noqa: E402
+    link_summaries,
+    persona_summaries,
+    trust_edges_for,
+)
 from api.schemas import GraphEdge, GraphNode, GraphPayload  # noqa: E402
 from db import Persona  # noqa: E402
 
@@ -36,6 +40,14 @@ NOTE = (
     "score; click an edge for the evidence that produced it."
 )
 
+TRUST_NOTE = (
+    "Dashed edges are shared buyers, not attribution. Two vendors rated by the "
+    "same people may be a supply chain, a migration that kept its customers, or "
+    "nothing at all — measured against ground truth the overlap separates true "
+    "pairs from false ones worse than chance (ROC-AUC 0.389), so it carries no "
+    "score and no band. Read it as a lead to check, never as evidence."
+)
+
 
 @router.get("/graph", response_model=GraphPayload)
 def get_graph(
@@ -45,6 +57,8 @@ def get_graph(
     source_id: int | None = Query(None, description="restrict to one source"),
     include_isolated: bool = Query(True,
                                    description="keep personas with no surviving edge"),
+    include_trust: bool = Query(True,
+                                description="include buyer-mediated context edges"),
 ) -> GraphPayload:
     personas = list(session.execute(select(Persona).order_by(Persona.id)).scalars())
     if source_id is not None:
@@ -90,4 +104,13 @@ def get_graph(
         for l in links
     ]
 
-    return GraphPayload(nodes=nodes, edges=edges, min_score=min_score, note=NOTE)
+    trust = trust_edges_for(session, [p.id for p in kept]) if include_trust else []
+
+    return GraphPayload(
+        nodes=nodes,
+        edges=edges,
+        trust_edges=trust,
+        trust_note=TRUST_NOTE if trust else "",
+        min_score=min_score,
+        note=NOTE,
+    )

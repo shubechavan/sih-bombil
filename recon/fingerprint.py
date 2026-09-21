@@ -78,6 +78,15 @@ for _stream in (sys.stdout, sys.stderr):
 
 from recon import tor  # noqa: E402
 
+# We pass verify=False deliberately (see _probe), so urllib3's warning is noise
+# that would print six times per https onion and bury the actual findings.
+try:  # pragma: no cover - urllib3 internals move between versions
+    import urllib3
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+except Exception:  # noqa: BLE001
+    pass
+
 __all__ = [
     "DEFAULT_PAGE_MARKERS",
     "GLOBAL_CONCURRENCY",
@@ -513,6 +522,15 @@ def _probe(session, base: str, path: str, limiter: HostRateLimiter,
             timeout=timeout,
             stream=True,
             allow_redirects=True,
+            # Same stance as fetch_tls(), and for the same reason. A v3 onion
+            # address *is* a public key: Tor authenticates the endpoint
+            # end-to-end before any TLS handshake, so certificate validation
+            # adds no assurance here. What it does add is a refusal to read —
+            # hidden-service certs are routinely self-signed, and with
+            # verify=True every https probe dies at the handshake and the
+            # certificate we came to look at is never seen. We are reading
+            # what the server publishes, not trusting it.
+            verify=False,
         ) as response:
             # Same guard as legacy/darksearch.py:722 — a redirect off the onion
             # would have us fingerprinting somebody else's server.
@@ -569,24 +587,40 @@ def fetch_tls(host: str, port: int, *, timeout: int = DEFAULT_TIMEOUT) -> dict:
             return {}
         cert = x509.load_der_x509_certificate(der)
         try:
-            sans = [
-                name.value for name in
+            # get_values_for_type returns the values themselves — plain `str`
+            # for DNSName, not the x509 objects. Reading `.value` off them
+            # raises AttributeError, and because this function is best-effort
+            # the exception below used to swallow it and return {}, so a live
+            # onion's SANs came back empty while the fixtures path (which reads
+            # them from JSON) looked fine.
+            sans = list(
                 cert.extensions.get_extension_for_class(
                     x509.SubjectAlternativeName
                 ).value.get_values_for_type(x509.DNSName)
-            ]
+            )
         except x509.ExtensionNotFound:
             sans = []
+        # Uppercase hex, no 0x, padded to whole bytes — the form Shodan and
+        # Censys publish. Without the padding a serial with a leading zero
+        # nibble (0F3A9C…) reads back as F3A9C… and never matches the
+        # observation, losing the 1.00-weight correlation signal entirely.
+        serial = format(cert.serial_number, "X")
+        if len(serial) % 2:
+            serial = "0" + serial
         return {
             "tls_subject": cert.subject.rfc4514_string(),
             "tls_issuer": cert.issuer.rfc4514_string(),
-            # Uppercase hex, no 0x — the form Shodan and Censys publish.
-            "tls_serial": format(cert.serial_number, "X"),
+            "tls_serial": serial,
             "tls_sans": sans,
             "tls_not_before": getattr(cert, "not_valid_before_utc", None)
             or cert.not_valid_before,
         }
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 - best effort, but not silent
+        # Most onions speak plain HTTP and failing here is ordinary. Saying so
+        # is not: a bug in the parsing above is indistinguishable from "no TLS"
+        # unless the reason is printed.
+        print(f"    tls: no certificate read from {host}:{port} "
+              f"({type(exc).__name__}: {exc})")
         return {}
     finally:
         if sock is not None:

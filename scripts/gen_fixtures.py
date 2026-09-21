@@ -1023,6 +1023,126 @@ def self_check(personas: list[dict], posts: list[dict]) -> None:
 # Output
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Buyer feedback (Phase 6)
+#
+# Written to fixtures/feedback.json ONLY. Nothing here touches personas, posts
+# or the answer key, and it draws from its own RNG stream rather than the one
+# build_corpus() threads through every persona in order — a single extra draw
+# from that stream would shift every subsequent value and rewrite the whole
+# corpus. scripts/check_fixture_hashes.py is the gate that proves it did not.
+#
+# BUYERS ARE NOT PERSONAS. They exist as a handle on a feedback row and never
+# enter personas.json, so the link graph, the 190 pairs and every published
+# figure are untouched by construction. A buyer is a counterparty, not a
+# candidate identity: the whole premise of a feedback edge is that the two ends
+# are different people, which is the opposite of what `links` asserts.
+#
+# LOYALTY IS A DIAL, AND THAT MATTERS FOR WHAT A MEASUREMENT MEANS. Buyers are
+# drawn from a per-market pool; a small share follow a vendor across a
+# migration. Any "does shared-buyer overlap separate true pairs" number
+# measured on this corpus is therefore a measurement of CROSS_MARKET_LOYALTY
+# below, not a discovery about darknet markets. Stylometry is different — the
+# generator plants writing quirks and measuring recovers them, which genuinely
+# tests the extractor. Here the generator plants the answer directly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: Buyers per market. Small enough that vendors on one market share customers,
+#: which is the realistic case and the one that makes shared-buyer overlap a
+#: poor identity signal.
+BUYER_POOL_SIZE = 18
+
+#: Of a migrated vendor's feedback on the new market, roughly this share comes
+#: from a buyer who also bought from them on the old one. Set deliberately low:
+#: a vendor who moves market gets a new customer base.
+CROSS_MARKET_LOYALTY = 0.15
+
+FEEDBACK_PHRASES = (
+    ("5", "landed in 3 days, packaging was discreet. will reorder."),
+    ("5", "exactly as described. good comms throughout."),
+    ("4", "slower than quoted but arrived intact. no complaints."),
+    ("4", "product fine, shipping label was a bit obvious."),
+    ("5", "second order from this vendor, same quality both times."),
+    ("3", "took two weeks and needed a nudge. eventually sorted."),
+    ("5", "fast, clean, answered every message. recommended."),
+    ("4", "good stealth. would use again."),
+    ("2", "dispute opened, vendor resolved it but it took a while."),
+    ("5", "no issues at all. escrow released early."),
+)
+
+
+def _buyer_handles(rng: random.Random) -> dict[str, list[str]]:
+    """A buyer pool per market. Handles are deliberately unlike any persona."""
+    stems = (
+        "quietcart", "nightporch", "bluefinch", "oakstep", "tinroof", "palegull",
+        "shortwave", "drybrook", "eastvane", "coldpress", "lowtide", "runegate",
+        "mossbank", "flintrow", "wireframe", "slateharbour", "duskline", "farrow",
+        "irongate", "pinewharf", "harbourlamp", "greyfen",
+    )
+    pools: dict[str, list[str]] = {}
+    available = list(stems)
+    rng.shuffle(available)
+    for source in SOURCES:
+        pool = []
+        for _ in range(BUYER_POOL_SIZE):
+            stem = available[rng.randrange(len(available))]
+            pool.append(f"{stem}{rng.randrange(10, 99)}")
+        pools[source["name"]] = sorted(dict.fromkeys(pool))
+    return pools
+
+
+def build_feedback(personas: list[dict]) -> list[dict]:
+    """Buyer→vendor feedback rows. Markets only; forums have no listings."""
+    rng = random.Random(f"{FIXTURE_SEED}:feedback")
+    pools = _buyer_handles(rng)
+
+    # Who traded where, so a migrated vendor can retain a few customers.
+    by_actor: dict[str, list[dict]] = {}
+    for persona in personas:
+        by_actor.setdefault(persona["actor"], []).append(persona)
+    previous_buyers: dict[int, list[str]] = {}
+
+    rows: list[dict] = []
+    feedback_id = 1
+    for persona in personas:
+        source = SOURCE_BY_NAME[persona["source"]]
+        if source["kind"] != "market":
+            continue  # a forum has no listings to leave feedback on
+
+        pool = pools[persona["source"]]
+        count = rng.randrange(3, 9)
+
+        # A minority of a migrated vendor's buyers followed them across.
+        carried: list[str] = []
+        for sibling in by_actor.get(persona["actor"], []):
+            if sibling["id"] == persona["id"]:
+                continue
+            for handle in previous_buyers.get(sibling["id"], []):
+                if rng.random() < CROSS_MARKET_LOYALTY:
+                    carried.append(handle)
+
+        buyers = list(dict.fromkeys(
+            carried + [pool[rng.randrange(len(pool))] for _ in range(count)]
+        ))[:count]
+        previous_buyers[persona["id"]] = buyers
+
+        for buyer in buyers:
+            rating, body = FEEDBACK_PHRASES[rng.randrange(len(FEEDBACK_PHRASES))]
+            rows.append({
+                "id": feedback_id,
+                "persona_id": persona["id"],
+                "source_id": persona["source_id"],
+                "buyer_handle": buyer,
+                "rating": int(rating),
+                "body": body,
+                "category": persona["category"],
+                "posted_at": _timestamp(persona, rng).isoformat(),
+                "url": f"{persona['profile_url']}/feedback",
+            })
+            feedback_id += 1
+    return rows
+
+
 def write_json(path: Path, payload) -> None:
     """Write UTF-8 with LF endings on every platform.
 
@@ -1054,6 +1174,9 @@ def main() -> int:
     write_json(OUT / "clearnet_obs" / "shodan_observations.json",
                build_clearnet_observations())
     write_json(OUT / "ground_truth.json", build_ground_truth(personas))
+    # Phase 6. A new file; nothing above is re-read or rewritten.
+    feedback = build_feedback(personas)
+    write_json(OUT / "feedback.json", feedback)
 
     chars = sum(len(p["body"]) for p in posts)
     print(f"fixtures written to {OUT}")
@@ -1062,6 +1185,9 @@ def main() -> int:
     print(f"  posts    : {len(posts)}  ({chars:,} characters, "
           f"mean {chars // len(posts)} per post)")
     print(f"  clearnet : {len(build_clearnet_observations())} shodan-shaped records")
+    buyers = len({f["buyer_handle"] for f in feedback})
+    print(f"  feedback : {len(feedback)} rows from {buyers} buyers "
+          f"(buyers are NOT personas)")
     return 0
 
 

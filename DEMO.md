@@ -1,6 +1,7 @@
 # DEMO — cue card
 
-Terminal **≥ 110 columns**. Browser at <http://localhost:3000>. Total ~6 min.
+Terminal **≥ 110 columns**. Browser at <http://localhost:3000>. Total ~6 min,
+or ~8 with the live crawl (step 7).
 
 ---
 
@@ -87,7 +88,37 @@ docker compose exec api python scripts/evaluate.py --infra site-broadcast
 
 Close: *"So the I term stays unmeasured. That's a result, not a gap."*
 
-## 6 · Recon and the report — 45 s
+## 6 · Buyer feedback, and not using it — 30 s
+
+Browser → **`/graph`** → point at the **dashed grey edges**
+
+> "Markets publish buyer ratings, so we collect them. The obvious move is to
+> feed shared buyers into the score. We measured it first: ROC-AUC 0.389 — worse
+> than a coin flip — and the wrong pairs score *higher* than the real ones,
+> because buyers shop around. So they're drawn dashed, they carry
+> `affects_score: false` on every API row, and they're worth an analyst's
+> attention without being worth a point of confidence."
+
+If challenged: `docker compose exec api python -m link.trust --measure`
+
+## 7 · Live collection over Tor — 90 s
+
+Only if the lab is already up (`docker compose --profile lab up -d`) and Tor has
+bootstrapped. **Otherwise skip it** — the numbers in step 1 are the argument.
+
+```bash
+docker compose exec lab-tor cat /var/lib/tor/lab_hs/hostname
+python scripts/collect.py --onion http://<that>.onion --verify
+```
+
+> "That's a real Tor v3 hidden service we host, crawled over a real circuit at
+> one request every two seconds. 33 requests, 74 seconds. The last line is the
+> one that matters: every one of 424 text fields came back byte-identical to
+> the offline corpus. Ingest that and the evaluation prints the same numbers,
+> line for line — which is how we know the collector isn't quietly losing
+> anything."
+
+## 8 · Recon and the report — 45 s
 
 ```bash
 docker compose exec api python -m recon.correlate --source fixtures --dry-run
@@ -106,11 +137,14 @@ Browser → **`/export`** → Download PDF (or show one prepared):
 
 ## If they ask: what's missing?
 
-> "Three things. There are no live collectors — we reuse v1's Tor crawler but
-> never wrote the forum and market parsers, so everything here runs on fixtures.
-> The Shodan provider is written but has never run against a real key, and it
-> says so at runtime. And the infrastructure term measures nothing on this
-> corpus, for the reason I showed you.
+> "Two things. The Shodan provider is written but has never run against a real
+> key, and it says so at runtime. And the infrastructure term measures nothing
+> on this corpus, for the reason I showed you.
+>
+> On collection: we crawl a lab hidden service we host ourselves, not real
+> marketplaces. The collectors have no default target list — you have to hand
+> them an address — which is deliberate, but it does mean the parsers have only
+> ever met one site's HTML.
 >
 > Every number is measured against a synthetic answer key. It's this engine on
 > this corpus, not real-world accuracy."
@@ -145,9 +179,11 @@ reason the corpus gives printed underneath.
 | **Console blank / won't load** | `docker compose restart ui`, wait 20 s. Fall back to the API: <http://localhost:8000/docs> has every endpoint with live responses. |
 | **Everything is broken** | `docker compose --profile seed down -v && docker compose up -d && docker compose run --rm seed` — 45 s from nothing. |
 | **No Docker at all** | `pip install -r requirements.txt && python scripts/evaluate.py`. The headline numbers need nothing else. |
+| **The lab onion won't resolve** | Tor needs the real network and a few minutes to publish the descriptor: `docker compose --profile lab logs lab-tor \| grep Bootstrapped`. Not at 100% → **skip step 7**. It is the only step that needs the internet. |
+| **Step 7 crawl hangs** | Ctrl-C and skip it. Nothing else depends on it, and step 1 already ran offline. |
 
 **Fallback order if time runs out:** step 1 → step 5 → step 3. Those three are
-the whole argument.
+the whole argument. Steps 6 and 7 are the Phase 6 material; drop them first.
 
 ---
 
@@ -158,6 +194,8 @@ the whole argument.
 | precision / recall | 1.000 at every band / 6 of 8 pairwise, 8 of 8 with closure |
 | separation margin | +0.508 → +0.287 under site-broadcast |
 | corpus | 20 personas, 3 sources, 200 posts, 14 actors — matches the answer key exactly |
-| tests | 309 Python, 27 browser checks |
+| tests | 330 Python, 34 browser checks |
+| the crawl | 20 personas, 200 posts, 33 requests, 74 s — all 424 fields byte-identical |
+| shared buyers | ROC-AUC 0.389, worse than chance — measured, then not used |
 | the floor | 300 characters; paperghost has 152 |
 | 3~18 | CONFIRMED 0.909 on PGP alone |

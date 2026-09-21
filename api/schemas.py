@@ -43,6 +43,7 @@ __all__ = [
     "ReconReport",
     "ScanJob",
     "TimelineBucket",
+    "TrustEdge",
     "measured",
     "unmeasured",
 ]
@@ -187,7 +188,34 @@ class ActorDetail(ActorSummary):
     notes: Optional[str] = None
     personas: list[PersonaDetail] = Field(default_factory=list)
     links: list[LinkSummary] = Field(default_factory=list)
+    #: Vendors outside this actor who share buyers with it. Relationship
+    #: context for an analyst, with no bearing on the actor's confidence.
+    trust_edges: list["TrustEdge"] = Field(default_factory=list)
+    trust_note: str = ""
     timeline: list["TimelineBucket"] = Field(default_factory=list)
+
+
+class TrustEdge(BaseModel):
+    """Two vendors rated by the same buyers. Context, not a score.
+
+    Deliberately not a `GraphEdge`: it has no `score`, no `band` and no
+    `components`, so nothing downstream can mistake it for an attribution edge
+    or add it to one. `affects_score` and `note` ride on every row for the same
+    reason — a bare overlap number in a payload gets used.
+    """
+
+    persona_a: int
+    persona_b: int
+    handle_a: str
+    handle_b: str
+    shared_buyers: list[str] = Field(default_factory=list)
+    shared_count: int = 0
+    buyers_a: int = 0
+    buyers_b: int = 0
+    overlap: float = 0.0
+    detail: str = ""
+    affects_score: bool = False
+    note: str = ""
 
 
 class GraphNode(BaseModel):
@@ -213,6 +241,10 @@ class GraphEdge(BaseModel):
 class GraphPayload(BaseModel):
     nodes: list[GraphNode] = Field(default_factory=list)
     edges: list[GraphEdge] = Field(default_factory=list)
+    #: A separate list, not mixed into `edges`, so a client has to opt into
+    #: drawing them and cannot sum them into a score by accident.
+    trust_edges: list[TrustEdge] = Field(default_factory=list)
+    trust_note: str = ""
     min_score: float
     note: str
 

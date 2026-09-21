@@ -194,6 +194,42 @@ CREATE TABLE IF NOT EXISTS infra_correlations (
     observed_at    TIMESTAMP DEFAULT NOW()
 );
 
+-- --- buyer feedback ---------------------------------------------------------
+--
+-- A buyer rating a vendor. Its own table, and **not** a row in `personas`,
+-- which is the whole design decision. A buyer is a counterparty, not a subject
+-- of attribution: making them personas would put ~40 new handles into the
+-- pairwise scoring loop, and the engine would start proposing that buyers are
+-- vendors' alt accounts on the strength of nothing.
+--
+-- It is also not a row in `links`. Shared-buyer overlap was measured against
+-- ground truth before this table was written and it separates true pairs from
+-- false ones *worse than chance* — ROC-AUC 0.389 over the 78 pairs where the
+-- signal exists at all, with mean overlap higher for non-pairs (0.0852) than
+-- for real ones (0.0250), because buyers shop around and the strongest
+-- overlaps are all same-market. Re-runnable: `python -m link.trust --measure`.
+-- Feedback is therefore relationship context an analyst reads, displayed on
+-- the graph and the actor profile, and it contributes nothing to A.
+CREATE TABLE IF NOT EXISTS feedback (
+    id            SERIAL PRIMARY KEY,
+    persona_id    INTEGER NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
+    source_id     INTEGER REFERENCES sources(id) ON DELETE CASCADE,
+    buyer_handle  TEXT NOT NULL,
+    -- Same normalizer as personas.handle_normalized, so "Th3_Buyer" on one
+    -- market and "the.buyer" on another are recognised as the same counterparty
+    -- by a stated rule rather than by eye.
+    buyer_normalized TEXT,
+    rating        INTEGER,                -- as published, 1-5 on both markets
+    body          TEXT,
+    posted_at     TIMESTAMP,
+    url           TEXT,
+    body_hash     TEXT,
+    collected_at  TIMESTAMP DEFAULT NOW(),
+    -- Re-collecting the same page must not duplicate rows. posted_at is in the
+    -- key because a buyer legitimately rates the same vendor more than once.
+    UNIQUE (persona_id, buyer_handle, posted_at, body_hash)
+);
+
 -- --- audit ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS scans (
     id              SERIAL PRIMARY KEY,
@@ -336,6 +372,15 @@ ALTER TABLE infra_correlations ADD COLUMN IF NOT EXISTS evidence      JSONB;
 ALTER TABLE infra_correlations ADD COLUMN IF NOT EXISTS provider      TEXT;
 ALTER TABLE infra_correlations ADD COLUMN IF NOT EXISTS observed_at   TIMESTAMP DEFAULT NOW();
 
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS source_id        INTEGER REFERENCES sources(id) ON DELETE CASCADE;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS buyer_normalized TEXT;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS rating           INTEGER;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS body             TEXT;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS posted_at        TIMESTAMP;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS url              TEXT;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS body_hash        TEXT;
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS collected_at     TIMESTAMP DEFAULT NOW();
+
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS operator_id     TEXT;
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS mode            TEXT;
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS data_source     TEXT;
@@ -473,6 +518,11 @@ CREATE INDEX IF NOT EXISTS idx_infra_serial  ON infra_findings(tls_serial);
 CREATE INDEX IF NOT EXISTS idx_corr_onion ON infra_correlations(onion_url);
 CREATE INDEX IF NOT EXISTS idx_corr_score ON infra_correlations(score DESC);
 
+CREATE INDEX IF NOT EXISTS idx_feedback_persona ON feedback(persona_id);
+-- "which vendors did this buyer rate" is the only query the trust graph makes,
+-- and it runs once per buyer.
+CREATE INDEX IF NOT EXISTS idx_feedback_buyer   ON feedback(buyer_normalized);
+
 CREATE INDEX IF NOT EXISTS idx_scans_time ON scans(started_at DESC);
 
 -- ============================================================================
@@ -508,7 +558,8 @@ FROM information_schema.columns
 WHERE table_schema = 'public'
   AND table_name IN ('sources', 'actors', 'personas', 'identifiers',
                      'persona_identifiers', 'posts', 'writeprints', 'links',
-                     'infra_findings', 'infra_correlations', 'scans')
+                     'infra_findings', 'infra_correlations', 'feedback',
+                     'scans')
 GROUP BY table_name
 ORDER BY table_name;
 
@@ -522,5 +573,6 @@ UNION ALL SELECT 'writeprints',         COUNT(*) FROM writeprints
 UNION ALL SELECT 'links',               COUNT(*) FROM links
 UNION ALL SELECT 'infra_findings',      COUNT(*) FROM infra_findings
 UNION ALL SELECT 'infra_correlations',  COUNT(*) FROM infra_correlations
+UNION ALL SELECT 'feedback',            COUNT(*) FROM feedback
 UNION ALL SELECT 'scans',               COUNT(*) FROM scans
 ORDER BY table_name;

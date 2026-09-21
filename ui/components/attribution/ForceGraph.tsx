@@ -1,6 +1,6 @@
 "use client";
 
-import type { GraphEdge, GraphNode } from "@/lib/attribution";
+import type { GraphEdge, GraphNode, TrustEdge } from "@/lib/attribution";
 import { BAND_TOKEN } from "@/lib/attribution";
 import {
 	type Simulation,
@@ -41,6 +41,15 @@ type PositionedEdge = Omit<GraphEdge, "source" | "target"> & SimulationLinkDatum
 interface Props {
 	nodes: GraphNode[];
 	edges: GraphEdge[];
+	/**
+	 * Buyer-mediated context. A separate prop, not merged into `edges`, so
+	 * they cannot be drawn with a band colour or a score-derived thickness —
+	 * they have neither. Rendered underneath, grey, dashed and uniformly thin,
+	 * and they take no part in the force layout: letting them pull nodes
+	 * together would make the picture argue for a relationship the engine
+	 * explicitly refused to score.
+	 */
+	trustEdges?: TrustEdge[];
 	selectedEdge: GraphEdge | null;
 	onSelectEdge: (edge: GraphEdge | null) => void;
 	onSelectNode?: (node: GraphNode) => void;
@@ -66,6 +75,7 @@ const SOURCE_COLOR = [
 export function ForceGraph({
 	nodes,
 	edges,
+	trustEdges = [],
 	selectedEdge,
 	onSelectEdge,
 	onSelectNode,
@@ -128,6 +138,14 @@ export function ForceGraph({
 
 	const positionedNodes = nodesRef.current;
 	const positionedEdges = edgesRef.current;
+	const nodeById = new Map(positionedNodes.map((node) => [node.id, node]));
+	// Resolved against the laid-out nodes at render time rather than fed to the
+	// simulation, which is what keeps them out of the layout.
+	const drawnTrust = trustEdges.flatMap((edge) => {
+		const a = nodeById.get(edge.persona_a);
+		const b = nodeById.get(edge.persona_b);
+		return a && b ? [{ edge, a, b }] : [];
+	});
 	const selectedKey = selectedEdge ? `${selectedEdge.source}-${selectedEdge.target}` : null;
 
 	if (positionedNodes.length === 0) {
@@ -139,9 +157,33 @@ export function ForceGraph({
 			className={styles.svg}
 			viewBox={`0 0 ${width} ${height}`}
 			role="img"
-			aria-label={`Persona link graph: ${positionedNodes.length} personas, ${positionedEdges.length} links`}
+			aria-label={`Persona link graph: ${positionedNodes.length} personas, ${positionedEdges.length} attribution links${
+				drawnTrust.length > 0
+					? `, and ${drawnTrust.length} dashed shared-buyer relationships which carry no score`
+					: ""
+			}`}
 			data-tick={tick}
 		>
+			{/* First, so attribution edges and nodes paint over them. */}
+			<g>
+				{drawnTrust.map(({ edge, a, b }) => (
+					<line
+						key={`trust-${edge.persona_a}-${edge.persona_b}`}
+						x1={a.x ?? 0}
+						y1={a.y ?? 0}
+						x2={b.x ?? 0}
+						y2={b.y ?? 0}
+						stroke="var(--ds-muted, #8b93a5)"
+						strokeWidth={1}
+						strokeOpacity={0.35}
+						strokeDasharray="2 5"
+					>
+						<title>
+							{`${edge.handle_a} ~ ${edge.handle_b} — ${edge.shared_count} shared buyer(s). Context only: shared buyers are not evidence of identity and do not affect the score.`}
+						</title>
+					</line>
+				))}
+			</g>
 			<g>
 				{positionedEdges.map((edge) => {
 					const source = edge.source as PositionedNode;

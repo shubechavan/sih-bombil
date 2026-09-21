@@ -215,3 +215,48 @@
 	color: var(--ds-critical, #f87171);
 	font-size: 0.85rem;
 }
+
+/* Shared-buyer context. Visually quieter than the evidence cards above it:
+   same panel, smaller type, muted colour, no band pill and no score, because
+   it carries none. */
+.trustNote {
+	margin: 0 0 0.85rem;
+	font-size: 0.78rem;
+	line-height: 1.6;
+	color: var(--ds-text-muted, #9aa3b2);
+}
+.trustList {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.7rem;
+}
+.trustList li {
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+	padding-left: 0.7rem;
+	border-left: 2px dashed var(--ds-border, #3a3f4b);
+}
+.trustHead {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.6rem;
+}
+.trustHead strong {
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+.trustCount {
+	font-size: 0.72rem;
+	color: var(--ds-text-muted, #9aa3b2);
+	white-space: nowrap;
+}
+.trustDetail {
+	font-size: 0.76rem;
+	line-height: 1.55;
+	color: var(--ds-text-muted, #9aa3b2);
+}

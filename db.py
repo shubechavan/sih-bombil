@@ -96,7 +96,7 @@ MIN_STYLOMETRY_CHARS = 300
 REQUIRED_TABLES: tuple[str, ...] = (
     "sources", "actors", "personas", "identifiers", "persona_identifiers",
     "posts", "writeprints", "links", "infra_findings", "infra_correlations",
-    "scans",
+    "feedback", "scans",
 )
 
 
@@ -552,6 +552,52 @@ class InfraCorrelation(Base):
         return f"<InfraCorrelation {self.onion_url!r}~{self.clearnet_host!r} {self.score:.2f}>"
 
 
+class Feedback(Base):
+    """A buyer's rating of a vendor. Relationship context, not attribution.
+
+    Two things this table deliberately is not.
+
+    It is not `personas`. A buyer is a counterparty; promoting them to a
+    persona would add roughly forty handles to the pairwise loop and the engine
+    would start proposing that buyers are vendors' alt accounts.
+
+    It is not `links`. Shared-buyer overlap was measured against ground truth
+    before this model existed and it separates true pairs from false ones worse
+    than chance — ROC-AUC 0.389 over the 78 pairs where the signal exists, mean
+    overlap 0.0250 for true pairs against 0.0852 for false ones, and only four
+    of the eight true positives are even measurable because the forum sells
+    nothing. So it reaches the analyst as context on the graph and the actor
+    profile, and reaches `score/` not at all. `python -m link.trust --measure`
+    re-runs the whole argument.
+    """
+
+    __tablename__ = "feedback"
+    __table_args__ = (
+        UniqueConstraint("persona_id", "buyer_handle", "posted_at", "body_hash",
+                         name="feedback_persona_id_buyer_handle_posted_at_body_hash_key"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    persona_id: Mapped[int] = mapped_column(
+        ForeignKey("personas.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sources.id", ondelete="CASCADE")
+    )
+    buyer_handle: Mapped[str] = mapped_column(Text, nullable=False)
+    buyer_normalized: Mapped[Optional[str]] = mapped_column(Text)
+    rating: Mapped[Optional[int]] = mapped_column(Integer)
+    body: Mapped[Optional[str]] = mapped_column(Text)
+    posted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    url: Mapped[Optional[str]] = mapped_column(Text)
+    body_hash: Mapped[Optional[str]] = mapped_column(Text)
+    collected_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
+
+    def __repr__(self) -> str:
+        return (f"<Feedback {self.buyer_handle!r}->persona {self.persona_id} "
+                f"{self.rating}>")
+
+
 class Scan(Base):
     """Audit log. Every run that touches data writes one row.
 
@@ -585,5 +631,6 @@ __all__ = [
     "IDENTIFIER_TYPES", "IDENTIFIER_WEIGHTS", "BANDS", "BAND_THRESHOLDS",
     "MIN_STYLOMETRY_CHARS", "REQUIRED_TABLES",
     "Source", "Actor", "Persona", "Identifier", "PersonaIdentifier", "Post",
-    "Writeprint", "Link", "InfraFinding", "InfraCorrelation", "Scan",
+    "Writeprint", "Link", "InfraFinding", "InfraCorrelation", "Feedback",
+    "Scan",
 ]

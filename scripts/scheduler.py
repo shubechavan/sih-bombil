@@ -130,6 +130,9 @@ class TickResult:
     links_written: int = 0
     actors_written: int = 0
     new_personas: list[int] = field(default_factory=list)
+    collected_from: Optional[str] = None
+    requests_made: int = 0
+    feedback_written: int = 0
     scan_ids: list[int] = field(default_factory=list)
     action_hash: str = ""
     status: str = "ok"
@@ -163,15 +166,41 @@ def write_state(result: TickResult) -> None:
 # One tick
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _ingest(session, source: str, input_path: Optional[Path]) -> tuple[int, int, int, int, list[int]]:
+def _collect(onion: str, *, allow_external: bool = False) -> tuple[list[dict], list[dict], int]:
+    """Crawl the target now, in-process. Returns (documents, feedback, requests).
+
+    No temporary file between the crawler and the ingest: a tick that writes
+    JSON to disk and reads it back can half-succeed, and the half that reached
+    disk gets ingested on the next tick as though it were fresh. The documents
+    are the frozen ingest contract either way — `scripts/collect.py` and this
+    path call the same collectors and produce the same dicts.
+    """
+    import collect as collect_script  # noqa: PLC0415 — sibling, sys.path above
+
+    result = collect_script.collect_all(onion, allow_external=allow_external)
+    if result.errors:
+        raise RuntimeError(
+            f"collection from {onion} reported {len(result.errors)} error(s): "
+            + "; ".join(result.errors[:3])
+        )
+    return result.documents, result.feedback, result.fetched
+
+
+def _ingest(session, source: str, input_path: Optional[Path],
+            documents: Optional[list[dict]] = None
+            ) -> tuple[int, int, int, int, list[int]]:
     """Read the sources and write anything new. Returns the counts and new ids."""
     import ingest  # noqa: PLC0415  — sibling script, added to sys.path above
 
-    documents = (
-        ingest.read_live_documents(input_path)
-        if source == "live"
-        else ingest.read_fixture_documents()
-    )
+    if documents is not None:
+        # Already in the contract's shape, straight from the collectors.
+        documents = ingest.documents_from_rows(documents)
+    else:
+        documents = (
+            ingest.read_live_documents(input_path)
+            if source == "live"
+            else ingest.read_fixture_documents()
+        )
     before = {row[0] for row in session.execute(sql("SELECT id FROM personas"))}
 
     extracted, _dropped = ingest.run_extraction(documents)
@@ -190,9 +219,17 @@ def _ingest(session, source: str, input_path: Optional[Path]) -> tuple[int, int,
 
 def run_tick(*, source: str = "fixtures", input_path: Optional[Path] = None,
              operator: str = "scheduler", threshold: Optional[float] = None,
-             force: bool = False) -> TickResult:
-    """One autonomous pass. Never raises; a failed tick is recorded as failed."""
-    result = TickResult(started_at=utcnow(), source=source)
+             force: bool = False, collect_from: Optional[str] = None,
+             allow_external: bool = False) -> TickResult:
+    """One autonomous pass. Never raises; a failed tick is recorded as failed.
+
+    With `collect_from`, the pass begins by crawling that target over Tor
+    instead of reading a file. There is no default target and none is
+    inferred: an unattended loop that picks its own hosts to crawl is exactly
+    the thing this scheduler must not be.
+    """
+    result = TickResult(started_at=utcnow(), source=source,
+                        collected_from=collect_from)
     previous = read_state()
     result.previous_version = previous.get("corpus_version")
 
@@ -212,10 +249,27 @@ def run_tick(*, source: str = "fixtures", input_path: Optional[Path] = None,
             session.flush()
             result.scan_ids.append(scan.id)
 
+            rows = feedback_rows = None
+            if collect_from:
+                rows, feedback_rows, result.requests_made = _collect(
+                    collect_from, allow_external=allow_external
+                )
+
             (result.documents, result.personas_new, result.posts_written,
              result.identifiers_written, result.new_personas) = _ingest(
-                session, source, input_path
+                session, source, input_path, documents=rows
             )
+
+            if feedback_rows:
+                import load_feedback  # noqa: PLC0415 — sibling, sys.path above
+
+                session.flush()
+                values, _unresolved = load_feedback.resolve_rows(
+                    session, feedback_rows
+                )
+                result.feedback_written = load_feedback.write_feedback(
+                    session, values
+                )
 
             corpus = load_corpus(session)
             # The same fingerprint stylometry uses to decide whether two vectors
@@ -277,6 +331,10 @@ def run_tick(*, source: str = "fixtures", input_path: Optional[Path] = None,
 
             result.action_hash = hashlib.sha256(json.dumps({
                 "source": source,
+                # In the hash because a tick that crawled an onion is not the
+                # same action as one that read a file, even with identical
+                # output.
+                "collected_from": collect_from,
                 "corpus_version": result.corpus_version,
                 "documents": result.documents,
                 "personas_new": result.personas_new,
@@ -315,6 +373,12 @@ def describe(result: TickResult) -> str:
         f"{result.personas_new} new persona(s), "
         f"{result.posts_written} post(s)"
     )
+    if result.collected_from:
+        head = (f"[{stamp}] collected {result.documents} document(s) from "
+                f"{result.collected_from} in {result.requests_made} request(s)"
+                f"\n    {result.personas_new} new persona(s), "
+                f"{result.posts_written} post(s), "
+                f"{result.feedback_written} feedback row(s)")
     if result.relinked:
         return (
             f"{head}\n    re-linked: {result.links_written} link(s), "
@@ -328,7 +392,9 @@ def describe(result: TickResult) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def start(interval: int, *, source: str, input_path: Optional[Path],
-          operator: str, threshold: Optional[float], run_now: bool) -> int:
+          operator: str, threshold: Optional[float], run_now: bool,
+          collect_from: Optional[str] = None,
+          allow_external: bool = False) -> int:
     """Run ticks on an interval until interrupted. Blocking and foreground.
 
     Foreground on purpose: a background daemon that scans hidden services is
@@ -345,6 +411,7 @@ def start(interval: int, *, source: str, input_path: Optional[Path],
         print(describe(run_tick(
             source=source, input_path=input_path,
             operator=operator, threshold=threshold,
+            collect_from=collect_from, allow_external=allow_external,
         )), flush=True)
 
     scheduler = BackgroundScheduler(timezone="UTC")
@@ -359,6 +426,10 @@ def start(interval: int, *, source: str, input_path: Optional[Path],
     print(RULE)
     print(f"  interval   every {interval}s")
     print(f"  source     {source}")
+    if collect_from:
+        print(f"  collecting {collect_from}")
+        print(f"             1 req / 2 s per host, passive GETs only"
+              + (", off-target hosts ALLOWED" if allow_external else ""))
     print(f"  operator   {operator}")
     print(f"  state      {STATE_FILE.name}")
     print("  stop with Ctrl-C, SIGTERM, or `scheduler.py --stop` from another shell")
@@ -470,6 +541,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="re-link even when the corpus fingerprint is unchanged")
     parser.add_argument("--no-run-now", action="store_true",
                         help="with --start, wait one interval before the first tick")
+    parser.add_argument("--collect", metavar="ONION", default=None,
+                        help="crawl this target at the start of every tick "
+                             "instead of reading --input. Implies --source "
+                             "live. There is no default and none is guessed.")
+    parser.add_argument("--allow-external", action="store_true",
+                        help="with --collect, permit hosts other than the "
+                             "target. Recorded in the audit row.")
     args = parser.parse_args(argv)
 
     if args.status:
@@ -481,22 +559,31 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
               f"finish its current tick and exit.")
         return 0
 
-    if args.source == "live" and not args.input:
-        parser.error("--source live needs --input <documents.json>")
+    if args.collect:
+        # Crawling *is* the live source. Accepting --source fixtures with
+        # --collect would mean a tick that crawled an onion and then ingested
+        # the offline corpus instead, which is worse than an error.
+        if args.input:
+            parser.error("--collect and --input are two different sources; pick one")
+        args.source = "live"
+    elif args.source == "live" and not args.input:
+        parser.error("--source live needs --input <documents.json> or --collect <onion>")
 
     operator = args.operator or os.environ.get("OPERATOR_ID") or "scheduler"
 
     if args.run_once:
         result = run_tick(source=args.source, input_path=args.input,
                           operator=operator, threshold=args.threshold,
-                          force=args.force)
+                          force=args.force, collect_from=args.collect,
+                          allow_external=args.allow_external)
         print(describe(result))
         return 0 if result.status == "ok" else 1
 
     _clear_stop_request()
     return start(args.interval, source=args.source, input_path=args.input,
                  operator=operator, threshold=args.threshold,
-                 run_now=not args.no_run_now)
+                 run_now=not args.no_run_now, collect_from=args.collect,
+                 allow_external=args.allow_external)
 
 
 if __name__ == "__main__":

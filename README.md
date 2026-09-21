@@ -33,12 +33,28 @@ Commands are given for each claim. Where something is not built, it says so.
 | 3 | Passive recon, clearnet correlation, the I term | **Complete** |
 | 4 | FastAPI endpoints, Next.js attribution console | **Complete** |
 | 5 | Autonomous mode, PDF case report, compose stack | **Complete** |
+| 6 | Lab hidden service, collectors, buyer feedback | **Complete** |
 
-The one thing the build plan asked for that does **not** exist is a `collectors/` package.
-`legacy/darksearch.py` holds v1's working Tor crawler and [recon/tor.py](recon/tor.py) exposes its
-session builder, but no forum or market parser was written — live acquisition today means handing an
-onion to `recon/fingerprint.py --source live` yourself. Everything else runs on the fixture corpus,
-which is what the demo uses.
+Phase 6 closed the gap that mattered most: until it, nothing in this repo had ever crawled anything.
+There is now a lab hidden service — a fake marketplace and forum serving the fixture corpus, published
+as a real Tor v3 onion by its own tor daemon in compose — and `collectors/` crawls it over Tor into
+exactly the ingest contract the offline path uses. The proof is that the two produce the same numbers:
+
+```
+$ python scripts/collect.py --onion http://<lab>.onion --out collected.json --verify
+  market_alpha    8 persona(s),  79 post(s), 39 feedback
+  forum_beta      7 persona(s),  70 post(s)
+  market_gamma    5 persona(s),  51 post(s), 26 feedback
+  total     20 personas, 200 posts, 65 feedback rows, 33 requests
+  verify: 20 document(s), ~424 text fields
+  every field is byte-identical to fixtures/ — the collector is lossless
+```
+
+Ingested into a fresh database and scored, `evaluate.py` output is identical to fixtures mode line
+for line, except the line naming which source it read. 74 seconds for the crawl at 1 request / 2 s.
+
+The lab is also the first thing `recon/` has ever pointed at for real, and doing so found two bugs
+that only a live certificate could surface — see *Passive reconnaissance* below.
 
 `ui/` carries the five attribution pages and nothing else. v1's alerts, threats, analytics, PII,
 pipeline and system pages — and the eight API routes that fed them — were deleted rather than left
@@ -274,6 +290,99 @@ Clearnet observations arrive behind a provider interface. The fixtures provider 
 live key in this repository** — it says so at runtime when selected, and writes the same caveat into
 the evidence of every row it produces.
 
+### Against a real onion
+
+Phase 6 pointed this at the lab hidden service, which was the first time any of it met a live
+server. Two bugs fell out immediately, both invisible to the fixtures path because that path reads
+certificates out of JSON:
+
+- **Self-signed certificates were refused before they could be read.** The probe GETs used
+  `requests`' default verification, so every `https://` onion died at the handshake and the
+  certificate we came to look at was never seen. A v3 onion address *is* a public key — Tor
+  authenticates the endpoint end-to-end before TLS — so validation adds no assurance here and only
+  prevents reading. `verify=False`, matching what `fetch_tls` already did deliberately.
+- **`format(serial, "X")` dropped a leading zero nibble.** The lab serves `0F3A9C1D77B54E2A`; we
+  read it back as `F3A9C1D77B54E2A` and the `tls_serial` match — the 1.00-weight signal, the
+  strongest in the rubric — would never have fired against a real observation. Serials are byte
+  strings and Shodan prints them padded; we now do too. A bare `except Exception: return {}` had
+  been hiding the AttributeError underneath, so the failure looked exactly like "this onion has no
+  TLS". It now prints the reason.
+
+Against the lab, live:
+
+```
+https://<lab>.onion/
+  banner    nginx/1.18.0    powered-by PHP/7.4.33
+  etag      W/"5f2a1c-1b4e"   favicon 153613668
+  tls       serial 0F3A9C1D77B54E2A  sans gamma-mirror.hostvault.net, www.gamma-mirror.hostvault.net
+  misconfig 0.771  (8/10 signals: status_exposed, clearnet_refs, robots_disallow, etag,
+                    powered_by, generator_meta, server_version, html_comments)
+
+  1.000  gamma-mirror.hostvault.net    185.212.44.23   [tls_serial 1.00, tls_san 0.95]
+  0.820  staging.hostvault.net         185.212.44.31   [etag 0.70, banner 0.40]
+  0.400  web07.cheaphost.example       91.219.238.7    [banner 0.40]
+```
+
+---
+
+## Live collection
+
+```bash
+docker compose --profile lab up -d --build
+docker compose exec lab-tor cat /var/lib/tor/lab_hs/hostname     # the address
+python scripts/collect.py --onion http://<that>.onion --out collected.json --verify
+```
+
+Three rules are enforced in `collectors/base.py` rather than promised in a README:
+
+- **No default target list.** There is no built-in set of markets. `--onion` is required and a test
+  asserts that no 56-character onion address appears anywhere in `collectors/`. A tool that ships
+  with a list of real marketplaces is a tool that crawls them the first time somebody runs it by
+  accident.
+- **Off-target hosts are refused**, including any redirect that leaves the target.
+  `--allow-external` exists for an operator who means it and is written into the audit row.
+- **Passive, at the same rate as recon** — GETs of pages the server links to, one request per two
+  seconds per host, shared across all three sources in a run. No POST, no auth, no parameter
+  guessing; `tests/test_phase6.py` greps the crawler for write verbs and credential headers.
+
+Collectors emit exactly the JSON `scripts/ingest.py` already reads. There is no second ingest path
+and no new table, which is the only reason a live crawl and the offline corpus can be compared at
+all. `--verify` diffs every collected field against `fixtures/` and names the first character that
+differs; against the lab, all ~424 text fields come back byte-identical, including the multi-line
+PGP blocks.
+
+The scheduler can drive it:
+
+```bash
+python scripts/scheduler.py --run-once --collect http://<lab>.onion
+```
+
+which crawls, ingests, re-links and clusters in one pass, and on the second tick reports that the
+corpus fingerprint has not moved and skips the re-link rather than recomputing the same rows.
+
+### Buyer feedback is context, not evidence
+
+Markets publish buyer ratings, so the collectors read them — into their own `feedback` table, never
+into `personas` and never into `links`. Buyers are counterparties, not subjects of attribution;
+promoting ~31 buyer handles to personas would put them in the pairwise loop and the engine would
+start proposing buyers as vendors' alt accounts.
+
+Whether shared buyers should *score* was measured before anything was built, over the 78 pairs among
+the 13 personas that have any feedback:
+
+| | true pairs | non-pairs |
+|---|---|---|
+| mean overlap | 0.0250 | **0.0852** |
+| ROC-AUC | **0.389** — worse than a coin flip | |
+
+The four strongest overlaps in the corpus — (18,20) and (1,4) at 0.444, (7,8) and (3,4) at 0.429 —
+are all same-market vendor pairs sharing one buyer pool, and not one is a true positive. Buyers shop
+around. Only 4 of the 8 true pairs are measurable at all, because the forum sells nothing.
+
+So trust edges are drawn on the graph dashed and grey, listed on the actor profile under a caption
+that states the number, carry `affects_score: false` on every API row, and contribute nothing to A.
+`python -m link.trust --measure` re-runs the whole argument against the live database.
+
 ---
 
 ## Quickstart
@@ -423,7 +532,7 @@ Synthetic, deterministic, and built so the engine can be scored rather than demo
 | **total** | **20** | **200** |
 
 14 actors, 8 expected positive pairs, 2 designed hard negatives, 4 armoured PGP key blocks,
-3 recon findings, 10 Shodan-shaped clearnet observations.
+3 recon findings, 10 Shodan-shaped clearnet observations, 65 buyer feedback rows from 31 buyers.
 
 Four market_alpha vendors reappear in market_gamma under new handles sharing a PGP key or wallet and
 a consistent writing style. Two pairs are built to *look* linkable and must be refused. One persona
@@ -441,26 +550,28 @@ mirror onion on a pair that already saturates H on two PGP fingerprints.
 
 ```
 db.py              SQLAlchemy 2.x models, engine, session factory, band thresholds
-schema_v2.sql      re-runnable DDL — 11 tables, 1 view, indexes, audit trail
+schema_v2.sql      re-runnable DDL — 12 tables, 1 view, indexes, audit trail
 extract/           identifiers, normalize (leet decode), pgp, gliner_extract
 recon/             fingerprint, correlate, tor (shim onto legacy/darksearch.py)
-link/              stylometry, behaviour, infra, resolve, graph, cluster
+collectors/        base crawler, market + forum parsers, fidelity verifier
+lab/               the practice target: fake marketplace, own tor daemon, planted misconfigs
+link/              stylometry, behaviour, infra, resolve, graph, cluster, trust
 score/             attribution — the formula, isolated and unit-tested
 api/               FastAPI: actors, graph, timeline, recon, scan, export + schemas
 export/            report.py — the PDF case report
 fixtures/          synthetic corpus + ground_truth.json
 scripts/           apply_schema, load_fixtures, ingest, evaluate, scheduler, generators
-tests/             11 pytest modules, 309 tests
+tests/             12 pytest modules, 330 tests
 ui/                Next.js console: /actors /actors/[id] /graph /timeline /export
 legacy/            v1 code kept for reuse — darksearch, llm, obfuslex, alert_api
 Dockerfile         the Python image: API, pipeline, scheduler
 ui/Dockerfile      the console image
-docker-compose.yml postgres + tor + api + ui, plus a one-shot `seed` profile
+docker-compose.yml postgres + tor + api + ui, plus `seed` and `lab` profiles
 ```
 
 ## Test suite
 
-`python -m pytest -q` → **309 passed**, plus 27 browser checks via
+`python -m pytest -q` → **330 passed**, plus 34 browser checks via
 `node ui/scripts/verify-pages.mjs`.
 
 | module | covers |
@@ -476,6 +587,7 @@ docker-compose.yml postgres + tor + api + ui, plus a one-shot `seed` profile
 | `test_persistence.py` | NULL vs 0.0 in the database, stored refusals, identifier provenance |
 | `test_api.py` | the wire contract — a component is a value or a reason, never both |
 | `test_phase5.py` | the scheduler starts nothing on import; the PDF prints no phantom zeros |
+| `test_phase6.py` | no default crawl target; lossless collection; feedback never reaches the score |
 
 Tests that need Postgres skip rather than fail when it is down, so the offline path stays green on
 a clean checkout.

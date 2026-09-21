@@ -190,17 +190,20 @@ def read_fixture_documents() -> list[Document]:
     return documents
 
 
-def read_live_documents(path: Path) -> list[Document]:
-    rows = _read(path)
-    if not isinstance(rows, list):
-        raise SystemExit(f"{path}: expected a JSON list of documents")
+def documents_from_rows(rows: list[dict], origin: str = "input") -> list[Document]:
+    """The frozen contract, in memory.
 
+    Split out of `read_live_documents` so a collector can hand its documents
+    straight over without a temporary file in between. Both callers validate
+    identically, which is the point — a crawl and a file must be able to
+    produce the same database or `--source live` proves nothing.
+    """
     documents = []
     for index, row in enumerate(rows):
         missing = [k for k in ("source", "source_url", "handle") if not row.get(k)]
         if missing:
             raise SystemExit(
-                f"{path}: document {index} is missing {', '.join(missing)}"
+                f"{origin}: document {index} is missing {', '.join(missing)}"
             )
         url = row["source_url"]
         documents.append(Document(
@@ -226,6 +229,13 @@ def read_live_documents(path: Path) -> list[Document]:
             key_blocks=list(row.get("key_blocks") or []),
         ))
     return documents
+
+
+def read_live_documents(path: Path) -> list[Document]:
+    rows = _read(path)
+    if not isinstance(rows, list):
+        raise SystemExit(f"{path}: expected a JSON list of documents")
+    return documents_from_rows(rows, origin=str(path))
 
 
 def payload_hash(documents: list[Document]) -> str:

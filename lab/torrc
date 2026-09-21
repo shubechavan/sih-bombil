@@ -1,0 +1,18 @@
+# torrc — server side. Publishes the lab target as a v3 onion service.
+#
+# Read the address out with:
+#   docker compose exec lab-tor cat /var/lib/tor/lab_hs/hostname
+
+SocksPort 0
+Log notice stdout
+DataDirectory /var/lib/tor
+
+HiddenServiceDir /var/lib/tor/lab_hs
+HiddenServiceVersion 3
+HiddenServicePort 80 lab:8080
+HiddenServicePort 443 lab:8443
+
+# A v3 service is not discoverable without its address, so this is not a matter
+# of the lab being "hidden enough" to be safe to leave running — it is a fake
+# marketplace serving synthetic data and it is labelled as one in its own HTML,
+# its <meta> tags, an X-Lab-Target header and its robots.txt.

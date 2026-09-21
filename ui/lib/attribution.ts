@@ -107,7 +107,31 @@ export interface ActorDetail extends ActorSummary {
 	notes: string | null;
 	personas: PersonaDetail[];
 	links: LinkSummary[];
+	trust_edges: TrustEdge[];
+	trust_note: string;
 	timeline: TimelineBucket[];
+}
+
+/**
+ * Two vendors rated by the same buyers. Deliberately NOT a GraphEdge: no
+ * score, no band, no components, so nothing can render it as attribution or
+ * add it to one. Measured against ground truth, buyer overlap separates true
+ * pairs from false ones worse than chance (ROC-AUC 0.389) — `affects_score`
+ * is always false and `note` says so on every row.
+ */
+export interface TrustEdge {
+	persona_a: number;
+	persona_b: number;
+	handle_a: string;
+	handle_b: string;
+	shared_buyers: string[];
+	shared_count: number;
+	buyers_a: number;
+	buyers_b: number;
+	overlap: number;
+	detail: string;
+	affects_score: boolean;
+	note: string;
 }
 
 export interface GraphNode {
@@ -133,6 +157,8 @@ export interface GraphEdge {
 export interface GraphPayload {
 	nodes: GraphNode[];
 	edges: GraphEdge[];
+	trust_edges: TrustEdge[];
+	trust_note: string;
 	min_score: number;
 	note: string;
 }

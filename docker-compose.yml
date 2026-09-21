@@ -105,6 +105,50 @@ services:
       api:
         condition: service_healthy
 
+  # ── the practice target ────────────────────────────────────────────────────
+  #
+  #   docker compose --profile lab up -d --build
+  #   docker compose exec lab-tor cat /var/lib/tor/lab_hs/hostname
+  #   python scripts/collect.py --onion http://<that>.onion --out collected.json
+  #
+  # Behind a profile: a plain `docker compose up` should not stand up a fake
+  # marketplace. It serves the synthetic fixture corpus and says so in its own
+  # HTML, and it exists so the collectors have something real to crawl —
+  # "collects over Tor" is otherwise a claim nobody in this repo has tested.
+  #
+  # Reaching it needs the real Tor network (a v3 service is published to the
+  # distributed hash table, so there is no offline shortcut). That is why it is
+  # a profile and not part of the demo path: `--source fixtures` still runs
+  # with the network unplugged.
+  lab:
+    build:
+      context: .
+      dockerfile: lab/Dockerfile
+    container_name: darksentinel-lab
+    profiles: ["lab"]
+    restart: unless-stopped
+    # No ports: by default. The lab is reached through its onion address, which
+    # is the point of it. Add `- "8099:8080"` locally to crawl it over plain
+    # HTTP while developing a parser.
+    expose:
+      - "8080"
+      - "8443"
+
+  lab-tor:
+    build:
+      context: .
+      dockerfile: lab/Dockerfile.tor
+    container_name: darksentinel-lab-tor
+    profiles: ["lab"]
+    restart: unless-stopped
+    volumes:
+      # Keeps the onion address (and its private key) across restarts, so the
+      # address written into notes before a demo is still the address on the
+      # day. `docker volume rm dark-sentinel-v2_lab_hs` rolls a new one.
+      - lab_hs:/var/lib/tor
+    depends_on:
+      - lab
+
   # ── one-shot: apply the schema and load the demo corpus ────────────────────
   #
   #   docker compose run --rm seed
@@ -127,6 +171,7 @@ services:
       sh -c "python scripts/apply_schema.py &&
              python scripts/load_fixtures.py --reset &&
              python scripts/ingest.py --source fixtures &&
+             python scripts/load_feedback.py --source fixtures &&
              python -m link.resolve --source db &&
              python -m link.cluster  --source db &&
              python -m recon.fingerprint --source fixtures &&
@@ -135,3 +180,4 @@ services:
 
 volumes:
   pgdata:
+  lab_hs:
