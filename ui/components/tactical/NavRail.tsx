@@ -6,6 +6,7 @@ import {
 	ChevronRight,
 	Download,
 	LayoutDashboard,
+	ScanSearch,
 	Share2,
 	Users,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const ICONS: Record<string, React.ElementType> = {
 	Share2,
 	CalendarRange,
 	Download,
+	ScanSearch,
 };
 
 interface NavItem {

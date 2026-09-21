@@ -1,0 +1,63 @@
+.wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ds-space-1);
+}
+
+.label {
+	font-family: var(--ds-font-sans);
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--ds-text-secondary);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.textarea {
+	width: 100%;
+	min-height: 100px;
+	padding: var(--ds-space-3);
+	background: var(--ds-surface-1);
+	border: 1px solid var(--ds-border);
+	border-radius: var(--ds-radius-md);
+	color: var(--ds-text-primary);
+	font-family: var(--ds-font-mono);
+	font-size: 0.875rem;
+	line-height: 1.6;
+	resize: vertical;
+	transition: border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.textarea::placeholder {
+	color: var(--ds-text-muted);
+}
+
+/* The accent border alone is a colour-only focus cue, which is exactly what the
+   global :focus-visible rule exists to prevent. Keep the ring and let the
+   border colour reinforce it. */
+.textarea:focus-visible {
+	outline: 2px solid var(--ds-border-active);
+	outline-offset: 1px;
+	border-color: var(--ds-accent);
+}
+
+.textarea:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	resize: none;
+}
+
+.charCount {
+	font-family: var(--ds-font-mono);
+	font-size: 0.7rem;
+	color: var(--ds-text-secondary);
+	text-align: right;
+}
+
+.charCount[data-over="true"] {
+	color: var(--ds-severity-critical);
+}
+
+.charCount[data-short="true"] {
+	color: var(--ds-severity-high);
+}

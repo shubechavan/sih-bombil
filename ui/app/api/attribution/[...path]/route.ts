@@ -13,7 +13,22 @@ import { backendUrl } from "../../_backend";
  * the browser downloads a file rather than rendering CSV as text.
  */
 
-const ALLOWED = ["actors", "graph", "timeline", "recon", "scan", "export", "health", "meta"];
+const ALLOWED = [
+	"actors",
+	"analyze",
+	"graph",
+	"timeline",
+	"recon",
+	"scan",
+	"export",
+	"health",
+	"meta",
+];
+
+// POST is not a blanket allowance: /scan runs the pipeline and /analyze scores a
+// paste. Everything else on this proxy is a read, and a read that accepts POST
+// is a write nobody reviewed.
+const POSTABLE = ["scan", "analyze"];
 
 export async function GET(request: NextRequest, context: { params: { path: string[] } }) {
 	const segments = context.params.path ?? [];
@@ -58,8 +73,11 @@ export async function GET(request: NextRequest, context: { params: { path: strin
 
 export async function POST(request: NextRequest, context: { params: { path: string[] } }) {
 	const segments = context.params.path ?? [];
-	if (segments[0] !== "scan") {
-		return NextResponse.json({ detail: "Only /scan accepts POST" }, { status: 405 });
+	if (!POSTABLE.includes(segments[0])) {
+		return NextResponse.json(
+			{ detail: `Only ${POSTABLE.map((p) => `/${p}`).join(" and ")} accept POST` },
+			{ status: 405 },
+		);
 	}
 
 	try {

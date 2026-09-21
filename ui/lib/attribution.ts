@@ -202,7 +202,42 @@ export interface ReconReport {
 	attribution_note: string;
 }
 
+/** One persona scored against pasted text. Same Components union as a link. */
+export interface AnalyseMatch {
+	persona_id: number;
+	handle: string;
+	source_name: string | null;
+	actor_id: number | null;
+	actor_label: string | null;
+	score: number;
+	band: Band;
+	components: Components;
+	evidence: EvidenceEntry[];
+}
+
+export interface AnalyseResponse {
+	feature_version: string;
+	/** Characters of prose after identifier masking — what the floor tested. */
+	char_count: number;
+	masked_chars: number;
+	stylometry: Component;
+	behaviour: Component;
+	matches: AnalyseMatch[];
+	not_scored: { persona_id: number; handle: string; reason: string }[];
+	note: string;
+}
+
+export interface AnalyseRequest {
+	text: string;
+	posted_at?: string[];
+	categories?: string[];
+	limit?: number;
+}
+
 export const BANDS: Band[] = ["CONFIRMED", "PROBABLE", "POSSIBLE", "WEAK"];
+
+/** The engine refuses stylometry below this many characters of masked prose. */
+export const MIN_STYLOMETRY_CHARS = 300;
 
 export const COMPONENT_LABELS: Record<ComponentKey, string> = {
 	H: "hard identifiers",
@@ -244,6 +279,27 @@ export async function api<T>(path: string, params?: Record<string, unknown>): Pr
 		try {
 			const body = await res.json();
 			detail = body?.detail ?? body?.error ?? detail;
+		} catch {
+			/* response was not JSON; keep the status message */
+		}
+		throw new ApiError(detail, res.status);
+	}
+	return (await res.json()) as T;
+}
+
+/** POST through the same proxy `api()` reads through. */
+export async function postJson<T>(path: string, body: unknown): Promise<T> {
+	const res = await fetch(`/api/attribution${path}`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(body),
+		cache: "no-store",
+	});
+	if (!res.ok) {
+		let detail = `Request failed (${res.status})`;
+		try {
+			const payload = await res.json();
+			detail = payload?.detail ?? payload?.error ?? detail;
 		} catch {
 			/* response was not JSON; keep the status message */
 		}
