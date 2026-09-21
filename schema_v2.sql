@@ -250,10 +250,15 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 
 -- --- audit ------------------------------------------------------------------
+-- Two tables, because they answer different questions. `scans` is a record of
+-- work the pipeline did: what ran, over what, how much it produced. `audit_log`
+-- is a record of what a person looked at. Forcing reads into `scans` would give
+-- most rows a NULL personas_new and turn the scan count on /health into a page
+-- view counter.
 CREATE TABLE IF NOT EXISTS scans (
     id              SERIAL PRIMARY KEY,
     operator_id     TEXT,
-    mode            TEXT,                  -- manual | scheduled
+    mode            TEXT,                  -- manual | scheduled | api
     data_source     TEXT,                  -- fixtures | live
     query           TEXT,
     sources_touched JSONB,
@@ -264,6 +269,37 @@ CREATE TABLE IF NOT EXISTS scans (
     finished_at     TIMESTAMP,
     status          TEXT DEFAULT 'running',
     error           TEXT
+);
+
+-- --- users ------------------------------------------------------------------
+-- Until now the operator on an audit row was whoever set $OPERATOR_ID. For a
+-- tool whose whole claim is that every action is attributable to a named person,
+-- that is a claim about an environment variable.
+CREATE TABLE IF NOT EXISTS users (
+    id            SERIAL PRIMARY KEY,
+    username      TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,           -- bcrypt; never a plaintext column
+    role          TEXT NOT NULL DEFAULT 'analyst',   -- analyst | admin
+    disabled      BOOLEAN DEFAULT FALSE,
+    created_at    TIMESTAMP DEFAULT NOW(),
+    last_login_at TIMESTAMP
+);
+
+-- --- audit_log: who looked at what ------------------------------------------
+-- Reads are logged, not just writes. For an attribution tool the sensitive act
+-- is usually reading: which analyst opened which actor profile is exactly the
+-- question an oversight body asks, and "we only logged the scans" is not an
+-- answer. One row per authenticated request.
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          BIGSERIAL PRIMARY KEY,
+    operator_id TEXT NOT NULL,
+    role        TEXT,
+    method      TEXT NOT NULL,
+    path        TEXT NOT NULL,
+    query       TEXT,
+    status      INTEGER,
+    action_hash TEXT,                      -- sha256 over operator|method|path|query
+    at          TIMESTAMP DEFAULT NOW()
 );
 
 -- ============================================================================
@@ -417,6 +453,25 @@ ALTER TABLE scans ADD COLUMN IF NOT EXISTS started_at      TIMESTAMP DEFAULT NOW
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS finished_at     TIMESTAMP;
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS status          TEXT DEFAULT 'running';
 ALTER TABLE scans ADD COLUMN IF NOT EXISTS error           TEXT;
+-- A scan triggered through the API is one job made of several steps, each of
+-- which writes its own row. `job_id` ties the parent to its children so status
+-- survives a restart and so `scan_ids` can name the rows this job produced
+-- rather than every row created since it began.
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS job_id          TEXT;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS stage           TEXT;
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS steps           JSONB;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role          TEXT DEFAULT 'analyst';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled      BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at    TIMESTAMP DEFAULT NOW();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP;
+
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS role        TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS query       TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS status      INTEGER;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS action_hash TEXT;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS at          TIMESTAMP DEFAULT NOW();
 
 -- Columns that must never be NULL. Applied here rather than only in section 1
 -- so an older database gains them too. Skipped with a notice if existing rows
@@ -493,6 +548,24 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                   WHERE conname = 'ck_users_role'
+                     AND conrelid = 'users'::regclass) THEN
+        ALTER TABLE users ADD CONSTRAINT ck_users_role CHECK (
+            role IN ('analyst', 'admin')
+        );
+    END IF;
+
+    -- 'queued' and 'running' join the vocabulary the CLI already used, because
+    -- an API job exists before its first step does.
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                   WHERE conname = 'ck_scans_status'
+                     AND conrelid = 'scans'::regclass) THEN
+        ALTER TABLE scans ADD CONSTRAINT ck_scans_status CHECK (
+            status IN ('queued', 'running', 'ok', 'failed')
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
                    WHERE conname = 'ck_infra_corr_score'
                      AND conrelid = 'infra_correlations'::regclass) THEN
         ALTER TABLE infra_correlations ADD CONSTRAINT ck_infra_corr_score CHECK (
@@ -548,6 +621,12 @@ CREATE INDEX IF NOT EXISTS idx_feedback_persona ON feedback(persona_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_buyer   ON feedback(buyer_normalized);
 
 CREATE INDEX IF NOT EXISTS idx_scans_time ON scans(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_scans_job  ON scans(job_id);
+
+-- The two questions an audit log is asked: "what happened recently" and
+-- "what did this operator do".
+CREATE INDEX IF NOT EXISTS idx_audit_time     ON audit_log(at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_operator ON audit_log(operator_id, at DESC);
 
 -- ============================================================================
 -- 5. VIEWS

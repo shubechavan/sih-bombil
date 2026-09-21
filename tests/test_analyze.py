@@ -424,7 +424,12 @@ def test_behaviour_can_be_built_from_timestamps_alone(built):
 
 @pytest.fixture(scope="module")
 def client():
-    """The API, or skip if it or its database is not ready."""
+    """A signed-in analyst client, or skip.
+
+    Analyst rather than admin on purpose: analysing pasted text is exactly the
+    kind of thing the lower role must be able to do, so these tests double as
+    the check that /analyze is not accidentally admin-only.
+    """
     fastapi_testclient = pytest.importorskip("fastapi.testclient")
     from api.main import app  # noqa: PLC0415
 
@@ -437,6 +442,17 @@ def client():
             pytest.skip(f"database unavailable: {payload.get('database')}")
         if not payload.get("ready"):
             pytest.skip(payload.get("hint") or "pipeline has not been run")
+
+        login = test_client.post(
+            "/auth/login", json={"username": "analyst", "password": "analyst-demo"}
+        )
+        if login.status_code == 503:
+            pytest.skip("JWT_SECRET is not set")
+        if login.status_code != 200:
+            pytest.skip("demo accounts are not seeded — run scripts/seed_users.py")
+        test_client.headers.update(
+            {"Authorization": f"Bearer {login.json()['access_token']}"}
+        )
         yield test_client
 
 

@@ -96,7 +96,7 @@ MIN_STYLOMETRY_CHARS = 300
 REQUIRED_TABLES: tuple[str, ...] = (
     "sources", "actors", "personas", "identifiers", "persona_identifiers",
     "posts", "writeprints", "writeprint_vocab", "links", "infra_findings",
-    "infra_correlations", "feedback", "scans",
+    "infra_correlations", "feedback", "scans", "users", "audit_log",
 )
 
 
@@ -645,9 +645,123 @@ class Scan(Base):
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     status: Mapped[Optional[str]] = mapped_column(Text, default="running")
     error: Mapped[Optional[str]] = mapped_column(Text)
+    #: Set on rows belonging to an API-triggered scan job: one parent row with
+    #: `stage` and `steps`, plus a child row per step that ran. The parent is
+    #: job state and survives a restart; the children are the audit trail.
+    job_id: Mapped[Optional[str]] = mapped_column(Text)
+    stage: Mapped[Optional[str]] = mapped_column(Text)
+    steps: Mapped[Optional[list]] = mapped_column(JSONB)
 
     def __repr__(self) -> str:
         return f"<Scan {self.id} {self.data_source} {self.status}>"
+
+
+class User(Base):
+    """An operator who can log in.
+
+    The role vocabulary is deliberately two words. `analyst` reads, analyses and
+    exports; `admin` additionally runs the pipeline and reads the audit log.
+    Anything finer would be a permissions system nobody asked for.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, default="analyst")
+    disabled: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    def __repr__(self) -> str:
+        return f"<User {self.username!r} {self.role}>"
+
+
+class AuditEntry(Base):
+    """One authenticated request, including reads.
+
+    Reads are here because for an attribution tool the sensitive act is usually
+    looking: which analyst opened which actor profile is precisely what an
+    oversight body asks about, and a log that only records writes cannot answer
+    it. Kept separate from `scans` because `scans` describes work the pipeline
+    did and most of its columns are meaningless for a GET.
+    """
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    operator_id: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[Optional[str]] = mapped_column(Text)
+    method: Mapped[str] = mapped_column(Text, nullable=False)
+    path: Mapped[str] = mapped_column(Text, nullable=False)
+    query: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[Optional[int]] = mapped_column(Integer)
+    action_hash: Mapped[Optional[str]] = mapped_column(Text)
+    at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
+
+    def __repr__(self) -> str:
+        return f"<AuditEntry {self.operator_id} {self.method} {self.path}>"
+
+
+def record_scan(
+    session,
+    *,
+    operator: str,
+    mode: str,
+    data_source: Optional[str] = None,
+    query: Optional[str] = None,
+    sources_touched: Optional[list] = None,
+    action_hash: Optional[str] = None,
+    status: str = "running",
+    started_at: Optional[datetime] = None,
+    job_id: Optional[str] = None,
+    stage: Optional[str] = None,
+    steps: Optional[list] = None,
+) -> Scan:
+    """Open an audit row and flush it, so the caller has its id.
+
+    This block was copy-pasted at seven call sites, each slightly different in
+    which fields it bothered to set. One helper means one place where a missing
+    operator or an unrecorded failure can be caught.
+
+    `job_id` falls back to $SCAN_JOB_ID. The API sets that in the environment of
+    the subprocesses it runs, which is how a step launched by `POST /scan` ends
+    up tied to the job that launched it without every CLI growing a flag.
+
+    The caller still owns the ending: set `status`, `finished_at` and whatever
+    counts it produced, then flush. `finish_scan()` below does the usual case.
+    """
+    import os  # noqa: PLC0415
+
+    scan = Scan(
+        operator_id=operator,
+        mode=mode,
+        data_source=data_source,
+        query=query,
+        sources_touched=sources_touched,
+        action_hash=action_hash,
+        started_at=started_at or utcnow(),
+        status=status,
+        job_id=job_id or os.environ.get("SCAN_JOB_ID") or None,
+        stage=stage,
+        steps=steps,
+    )
+    session.add(scan)
+    session.flush()
+    return scan
+
+
+def finish_scan(session, scan: Scan, *, status: str = "ok",
+                error: Optional[str] = None, **fields) -> Scan:
+    """Close an audit row. `error` is truncated, never dropped."""
+    for key, value in fields.items():
+        setattr(scan, key, value)
+    scan.status = status
+    scan.error = str(error)[:2000] if error is not None else None
+    scan.finished_at = utcnow()
+    session.flush()
+    return scan
 
 
 __all__ = [
@@ -656,6 +770,7 @@ __all__ = [
     "IDENTIFIER_TYPES", "IDENTIFIER_WEIGHTS", "BANDS", "BAND_THRESHOLDS",
     "MIN_STYLOMETRY_CHARS", "REQUIRED_TABLES",
     "Source", "Actor", "Persona", "Identifier", "PersonaIdentifier", "Post",
-    "Writeprint", "Link", "InfraFinding", "InfraCorrelation", "Feedback",
-    "Scan",
+    "Writeprint", "WriteprintVocab", "Link", "InfraFinding", "InfraCorrelation",
+    "Feedback", "Scan", "User", "AuditEntry",
+    "record_scan", "finish_scan",
 ]

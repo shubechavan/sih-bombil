@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT))
 from fastapi import APIRouter, Depends, HTTPException, Query  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
 
+from api.auth import Principal, current_user  # noqa: E402
 from api.deps import get_session  # noqa: E402
 from api.queries import link_summaries, persona_summaries  # noqa: E402
 from db import utcnow  # noqa: E402
@@ -90,12 +91,10 @@ def _flatten(dataset: str, row: dict) -> dict:
     return flat
 
 
-def _operator(explicit: Optional[str]) -> str:
-    """Whose name goes on the report. Never blank — a report with no operator
-    on it is not an auditable document."""
-    import os  # noqa: PLC0415
-
-    return explicit or os.environ.get("OPERATOR_ID") or "unknown"
+# The operator on the report used to come from a query parameter, falling back
+# to $OPERATOR_ID. That let anyone print any name on every page of an auditable
+# document, which is close to the opposite of what an auditable document is for.
+# It is the signed-in principal now, and there is no way to override it.
 
 
 def _serialise(value):
@@ -117,8 +116,7 @@ def export(
         None, description="comma-separated subset of the dataset's columns"),
     actor: Optional[list[int]] = Query(
         None, description="pdf only: actor id, repeatable. Omit for all."),
-    operator: Optional[str] = Query(
-        None, description="pdf only: printed on every page of the report"),
+    principal: Principal = Depends(current_user),
 ) -> Response:
     fmt = fmt.lower()
     if fmt not in {"csv", "json", "pdf"}:
@@ -141,7 +139,7 @@ def export(
         stamp = utcnow().strftime("%Y%m%dT%H%M%SZ")
         name = f"dark-sentinel-case-report-{stamp}.pdf"
         return Response(
-            content=build_report(details, operator=_operator(operator)),
+            content=build_report(details, operator=principal.username),
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{name}"'},
         )

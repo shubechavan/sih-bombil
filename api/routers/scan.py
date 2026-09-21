@@ -28,6 +28,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException  # noqa: 
 from pydantic import BaseModel, Field  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
+from api.auth import Principal, require_role  # noqa: E402
 from api.deps import get_session  # noqa: E402
 from api.schemas import ScanJob  # noqa: E402
 from db import Scan, utcnow  # noqa: E402
@@ -112,7 +113,13 @@ def _view(job: dict) -> ScanJob:
 
 
 @router.post("/scan", response_model=ScanJob, status_code=202)
-def start_scan(request: ScanRequest, background: BackgroundTasks) -> ScanJob:
+def start_scan(
+    request: ScanRequest,
+    background: BackgroundTasks,
+    # Running the pipeline rewrites the links table. Reading is an analyst's
+    # job; changing what everyone else reads is not.
+    principal: Principal = Depends(require_role("admin")),
+) -> ScanJob:
     unknown = [s for s in request.steps if s not in _STEPS]
     if unknown:
         raise HTTPException(

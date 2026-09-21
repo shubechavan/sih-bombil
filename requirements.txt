@@ -28,6 +28,14 @@ cryptography==46.0.7     # reads TLS certs on https onions; never validates them
 fastapi==0.115.0
 uvicorn==0.30.6
 
+# --- Auth ---
+# bcrypt directly rather than passlib: passlib is unmaintained and its bcrypt
+# backend warns loudly against bcrypt 4.x. PyJWT rather than python-jose for the
+# same reason — fewer moving parts for one HS256 sign and verify. Login takes a
+# JSON body, so python-multipart is not needed.
+bcrypt==4.2.1
+PyJWT==2.10.1
+
 # --- Reporting ---
 reportlab==4.2.5         # PDF case report
 pypdf==5.1.0             # tests read the rendered PDF back out

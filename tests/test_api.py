@@ -23,6 +23,13 @@ sys.path.insert(0, str(ROOT))
 
 @pytest.fixture(scope="module")
 def client():
+    """A signed-in admin client.
+
+    Every route but /health needs a token since Phase 7. The fixture signs in
+    rather than overriding the dependency, so these tests keep exercising the
+    real auth path instead of a hole punched around it. Admin because a few of
+    these read /scan and /export.
+    """
     fastapi_testclient = pytest.importorskip("fastapi.testclient")
     from api.main import app  # noqa: PLC0415
 
@@ -35,6 +42,17 @@ def client():
             pytest.skip(f"database unavailable: {payload.get('database')}")
         if not payload.get("ready"):
             pytest.skip(payload.get("hint") or "pipeline has not been run")
+
+        login = test_client.post(
+            "/auth/login", json={"username": "admin", "password": "admin-demo"}
+        )
+        if login.status_code == 503:
+            pytest.skip("JWT_SECRET is not set")
+        if login.status_code != 200:
+            pytest.skip("demo accounts are not seeded — run scripts/seed_users.py")
+        test_client.headers.update(
+            {"Authorization": f"Bearer {login.json()['access_token']}"}
+        )
         yield test_client
 
 

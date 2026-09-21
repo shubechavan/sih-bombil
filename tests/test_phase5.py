@@ -222,6 +222,19 @@ def test_the_graph_image_is_omitted_when_there_is_nothing_to_draw():
     assert graph_image([{"id": 1, "handle": "solo"}], []) is None
 
 
+def _sign_in(client):
+    """Attach an admin token, or skip. Export needs a signed-in operator since
+    Phase 7 — the operator's name goes on every page of the report."""
+    login = client.post(
+        "/auth/login", json={"username": "admin", "password": "admin-demo"}
+    )
+    if login.status_code != 200:
+        pytest.skip("demo accounts are not seeded — run scripts/seed_users.py")
+    client.headers.update(
+        {"Authorization": f"Bearer {login.json()['access_token']}"}
+    )
+
+
 def test_the_pdf_endpoint_serves_a_pdf():
     fastapi_testclient = pytest.importorskip("fastapi.testclient")
     pytest.importorskip("reportlab")
@@ -231,6 +244,7 @@ def test_the_pdf_endpoint_serves_a_pdf():
         health = client.get("/health").json()
         if not health.get("ready"):
             pytest.skip(health.get("hint") or "pipeline has not been run")
+        _sign_in(client)
         response = client.get("/export/pdf")
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/pdf"
@@ -243,6 +257,7 @@ def test_an_unknown_export_format_is_still_refused():
     from api.main import app  # noqa: PLC0415
 
     with fastapi_testclient.TestClient(app) as client:
+        _sign_in(client)
         response = client.get("/export/docx")
         if response.status_code == 503:
             # The session dependency resolves before the handler, so with the
