@@ -95,8 +95,8 @@ MIN_STYLOMETRY_CHARS = 300
 #: Every table schema_v2.sql is responsible for. Used by require_schema().
 REQUIRED_TABLES: tuple[str, ...] = (
     "sources", "actors", "personas", "identifiers", "persona_identifiers",
-    "posts", "writeprints", "links", "infra_findings", "infra_correlations",
-    "feedback", "scans",
+    "posts", "writeprints", "writeprint_vocab", "links", "infra_findings",
+    "infra_correlations", "feedback", "scans",
 )
 
 
@@ -433,6 +433,31 @@ class Writeprint(Base):
     def __repr__(self) -> str:
         state = "REFUSED" if self.refused else f"chars={self.char_count}"
         return f"<Writeprint p={self.persona_id} {state}>"
+
+
+class WriteprintVocab(Base):
+    """The fitted TF-IDF vocabulary the writeprints of one version were built with.
+
+    Stored so a text that was not in the corpus — pasted into /analyze after the
+    fact — can be projected into the same space by `transform` alone. Refitting
+    with the new text included would change `feature_version` and invalidate
+    every cached vector, which is the opposite of what the caller wants.
+
+    `terms` is ordered: a term's position in the list is its column index, and
+    `idf` is aligned to it. The two are written and read together and must never
+    be edited apart.
+    """
+
+    __tablename__ = "writeprint_vocab"
+
+    feature_version: Mapped[str] = mapped_column(Text, primary_key=True)
+    terms: Mapped[Optional[list]] = mapped_column(JSONB)
+    idf: Mapped[Optional[bytes]] = mapped_column(LargeBinary)
+    n_features: Mapped[Optional[int]] = mapped_column(Integer)
+    built_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
+
+    def __repr__(self) -> str:
+        return f"<WriteprintVocab {self.feature_version} n={self.n_features}>"
 
 
 class Link(Base):

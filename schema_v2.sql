@@ -123,6 +123,25 @@ CREATE TABLE IF NOT EXISTS writeprints (
     computed_at     TIMESTAMP DEFAULT NOW()
 );
 
+-- --- writeprint_vocab: the fitted vocabulary the vectors above were made with -
+-- TF-IDF is corpus-relative, so a vector is only meaningful next to the
+-- vocabulary and idf weights that produced it. Storing the vectors without them
+-- is enough to compare two personas already in the corpus and nothing else: a
+-- text that arrives later — pasted into /analyze by an analyst — cannot be put
+-- in the same space without refitting, and refitting with the new text in the
+-- corpus changes `feature_version` and invalidates every stored vector.
+--
+-- So the fit is persisted here under the same key the vectors carry. A vocab row
+-- and a writeprints row sharing a feature_version are comparable by definition:
+-- same extractor, same corpus, therefore the same fitted vocabulary.
+CREATE TABLE IF NOT EXISTS writeprint_vocab (
+    feature_version TEXT PRIMARY KEY,      -- joins writeprints.feature_version
+    terms           JSONB,                 -- char n-grams; list index = column index
+    idf             BYTEA,                 -- np.float64 tobytes, aligned with terms
+    n_features      INTEGER,
+    built_at        TIMESTAMP DEFAULT NOW()
+);
+
 -- --- links: persona to persona ----------------------------------------------
 CREATE TABLE IF NOT EXISTS links (
     id            SERIAL PRIMARY KEY,
@@ -317,6 +336,11 @@ ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS hour_hist       JSONB;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS feature_version TEXT;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS refused_reason  TEXT;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS computed_at     TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS terms      JSONB;
+ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS idf        BYTEA;
+ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS n_features INTEGER;
+ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS built_at   TIMESTAMP DEFAULT NOW();
 
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_a    INTEGER REFERENCES personas(id) ON DELETE CASCADE;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_b    INTEGER REFERENCES personas(id) ON DELETE CASCADE;

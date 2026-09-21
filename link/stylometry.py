@@ -65,24 +65,34 @@ from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from db import MIN_STYLOMETRY_CHARS, Writeprint as WriteprintRow, utcnow  # noqa: E402
+from db import (  # noqa: E402
+    MIN_STYLOMETRY_CHARS,
+    Writeprint as WriteprintRow,
+    WriteprintVocab as VocabRow,
+    utcnow,
+)
 
 __all__ = [
     "FAMILY_WEIGHTS",
     "FEATURE_VERSION",
     "MIN_STYLOMETRY_CHARS",
+    "Featurised",
+    "Vocabulary",
     "Writeprint",
     "WriteprintSet",
     "build",
     "corpus_version",
+    "featurise",
     "load",
     "load_or_build",
+    "load_vocabulary",
     "mask_identifiers",
     "store",
+    "store_vocabulary",
 ]
 
 #: Bump when any feature family changes shape or meaning. Cached vectors from a
@@ -262,6 +272,39 @@ def _unit(vector: np.ndarray) -> np.ndarray:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
+class Vocabulary:
+    """The fitted char n-gram vocabulary, kept so later text can be transformed.
+
+    `terms` is ordered — index in the list is the column index in the char
+    n-gram block — and `idf` is aligned to it. Holding both is what makes
+    `featurise()` a pure transform: a text that was never in the corpus lands in
+    the same space without the fit being touched.
+    """
+
+    feature_version: str
+    terms: list[str]
+    idf: np.ndarray
+
+    def __len__(self) -> int:
+        return len(self.terms)
+
+
+@dataclass(frozen=True)
+class Featurised:
+    """One ad-hoc text put through the transform-only path.
+
+    Either a writeprint, or the reason there is none. The floor applies here
+    exactly as it applies to a persona, so `writeprint is None` with a
+    `refused_reason` is an ordinary outcome and not an error.
+    """
+
+    writeprint: Optional["Writeprint"]
+    refused_reason: Optional[str]
+    char_count: int        #: masked prose length — the number the floor tested
+    masked_chars: int      #: how much identifier text was removed before testing
+
+
+@dataclass(frozen=True)
 class Writeprint:
     """One persona's cached writeprint."""
 
@@ -292,6 +335,9 @@ class WriteprintSet:
     #: recomputed. Reported by the CLI so a cache that silently never hits is
     #: visible rather than merely slow.
     from_cache: bool = False
+    #: The vocabulary the fit produced, present only when a fit actually ran.
+    #: A cache hit leaves it None — the row it would write is already there.
+    vocabulary: Optional[Vocabulary] = None
 
     def __contains__(self, persona_id: int) -> bool:
         return persona_id in self.prints
@@ -375,6 +421,11 @@ def load_or_build(
     `feature_version`; a partial match is treated as a miss, because a corpus
     that gained a persona has a different vocabulary and the old vectors are no
     longer comparable.
+
+    A third condition joins those: the fitted vocabulary must be stored too.
+    Vectors without it can be compared to each other and to nothing else, so a
+    database seeded before `writeprint_vocab` existed is a miss — the refit
+    produces byte-identical vectors and fills the gap.
     """
     if session is None:
         return build(texts, identifiers, min_chars=min_chars), False
@@ -382,7 +433,8 @@ def load_or_build(
     masked, refused, version = _prepare(texts, identifiers or {}, min_chars)
     if masked:
         cached = load(session, version)
-        if cached and set(masked) <= set(cached):
+        have_vocabulary = load_vocabulary(session, version) is not None
+        if cached and have_vocabulary and set(masked) <= set(cached):
             return (
                 WriteprintSet(
                     prints={pid: cached[pid] for pid in masked},
@@ -461,7 +513,133 @@ def build(
             feature_version=version,
         )
 
-    return WriteprintSet(prints=prints, refused=refused, feature_version=version)
+    # The fit is the expensive part and, until now, was thrown away with the
+    # local `vectorizer`. Keeping it is what lets a text that arrives later be
+    # projected into this same space instead of forcing a refit that would
+    # invalidate every vector just computed.
+    vocabulary = Vocabulary(
+        feature_version=version,
+        terms=[str(t) for t in vectorizer.get_feature_names_out()],
+        idf=np.asarray(vectorizer.idf_, dtype=np.float64),
+    )
+
+    return WriteprintSet(prints=prints, refused=refused, feature_version=version,
+                         vocabulary=vocabulary)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Transform-only path — one ad-hoc text against an already-fitted vocabulary
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _char_ngram_vector(text: str, vocabulary: Vocabulary) -> np.ndarray:
+    """The char n-gram family for one text, using a fixed vocabulary.
+
+    This is `TfidfVectorizer.transform` spelled out: a fixed-vocabulary
+    `CountVectorizer` needs no fit, and the three steps after it — sublinear tf,
+    the stored idf, L2 — are what `TfidfTransformer` applies with this module's
+    settings. Doing it explicitly rather than reconstructing a fitted
+    `TfidfVectorizer` keeps it off sklearn's private attributes, which is worth
+    the six lines: the number this produces has to match a vector built by a
+    different sklearn release six months from now.
+    """
+    counts = CountVectorizer(
+        vocabulary=vocabulary.terms,
+        analyzer="char",
+        ngram_range=CHAR_NGRAM_RANGE,
+        lowercase=False,
+    ).transform([text])
+
+    dense = np.asarray(counts.todense(), dtype=np.float64).ravel()
+    seen = dense > 0
+    dense[seen] = 1.0 + np.log(dense[seen])    # sublinear_tf=True
+    return _unit(dense * vocabulary.idf)       # use_idf=True, then norm="l2"
+
+
+def featurise(
+    text: str,
+    vocabulary: Vocabulary,
+    *,
+    identifiers: Sequence[str] = (),
+    min_chars: int = MIN_STYLOMETRY_CHARS,
+    persona_id: int = -1,
+) -> Featurised:
+    """Vectorise one arbitrary text against an already-fitted vocabulary.
+
+    Transform only: `vocabulary` is read and never widened. Text containing
+    n-grams the corpus never saw simply has no column for them, which is the
+    correct behaviour — the alternative is refitting, and a refit changes
+    `feature_version` and makes every stored vector incomparable.
+
+    The masking, normalisation and character floor are the same three steps
+    `_prepare()` applies to a persona, in the same order, so a persona's own
+    text put through here reproduces the vector `build()` gave it.
+
+    Args:
+        text: the raw text, unmasked.
+        vocabulary: a fitted vocabulary, from `build()` or `load_vocabulary()`.
+        identifiers: known identifier values to mask before featurising, so S
+            stays independent of H.
+        min_chars: the floor, in characters of masked prose.
+        persona_id: stamped onto the returned writeprint. The default is
+            negative because this text belongs to no persona in the corpus.
+
+    Returns:
+        A `Featurised`. Below the floor, `.writeprint` is None and
+        `.refused_reason` says so — the caller scores without an S term.
+    """
+    raw = unicodedata.normalize("NFC", text or "")
+    masked = mask_identifiers(raw, identifiers)
+    masked = re.sub(r"[ \t]+", " ", masked).strip()
+
+    char_count = len(masked)
+    masked_chars = len(raw.strip()) - char_count
+
+    if char_count < min_chars:
+        return Featurised(
+            writeprint=None,
+            refused_reason=(
+                f"stylometry did not run — the supplied text has {char_count} "
+                f"characters of prose after identifier masking, below the "
+                f"{min_chars}-character floor"
+            ),
+            char_count=char_count,
+            masked_chars=max(masked_chars, 0),
+        )
+
+    families = {
+        "char_ngram": _char_ngram_vector(masked, vocabulary),
+        "function_words": _unit(_function_word_vector(masked)),
+        "punctuation": _unit(_punctuation_vector(masked)),
+    }
+    shape_vector, readable = _shape_vector(masked)
+    families["shape"] = _unit(shape_vector)
+
+    # Same order and same sqrt-weighting as build(); a different order here
+    # would produce a vector that still has unit norm and means nothing.
+    combined = _unit(np.concatenate([
+        families[name] * np.sqrt(FAMILY_WEIGHTS[name])
+        for name in ("char_ngram", "function_words", "punctuation", "shape")
+    ]))
+
+    return Featurised(
+        writeprint=Writeprint(
+            persona_id=persona_id,
+            char_count=char_count,
+            vector=combined.astype(np.float32),
+            features={
+                **readable,
+                "family_weights": FAMILY_WEIGHTS,
+                "char_ngram_range": list(CHAR_NGRAM_RANGE),
+                "vector_dim": int(combined.size),
+                "masked_chars": max(masked_chars, 0),
+                "top_function_words": _top_function_words(masked),
+            },
+            feature_version=vocabulary.feature_version,
+        ),
+        refused_reason=None,
+        char_count=char_count,
+        masked_chars=max(masked_chars, 0),
+    )
 
 
 def _top_function_words(text: str, limit: int = 8) -> list[list]:
@@ -520,7 +698,53 @@ def store(session, writeprints: WriteprintSet,
         row.refused_reason = writeprints.refusal_reason(persona_id)
         written += 1
 
+    # The vocabulary these vectors were made with, stored under the same key.
+    # Absent on a cache hit, where the row is already there and identical.
+    if writeprints.vocabulary is not None:
+        store_vocabulary(session, writeprints.vocabulary)
+
     return written
+
+
+def store_vocabulary(session, vocabulary: Vocabulary) -> bool:
+    """Upsert one fitted vocabulary. Returns True when a row was written.
+
+    Idempotent by design: the same `feature_version` always implies the same
+    terms and the same idf, so re-writing is a no-op with a fresh timestamp
+    rather than a conflict.
+    """
+    row = session.get(VocabRow, vocabulary.feature_version)
+    if row is None:
+        row = VocabRow(feature_version=vocabulary.feature_version)
+        session.add(row)
+
+    row.terms = list(vocabulary.terms)
+    row.idf = np.asarray(vocabulary.idf, dtype=np.float64).tobytes()
+    row.n_features = len(vocabulary.terms)
+    row.built_at = utcnow()
+    return True
+
+
+def load_vocabulary(session, feature_version: str) -> Optional[Vocabulary]:
+    """Load the vocabulary fitted by exactly `feature_version`, or None.
+
+    Same discipline as `load()`: a row from another version is not returned.
+    Transforming against the wrong vocabulary yields a vector of the right shape
+    and the wrong meaning, which is the failure mode this module exists to make
+    impossible.
+    """
+    row = session.get(VocabRow, feature_version)
+    if row is None or not row.terms or not row.idf:
+        return None
+
+    idf = np.frombuffer(row.idf, dtype=np.float64)
+    terms = [str(t) for t in row.terms]
+    if len(terms) != len(idf):
+        # Only reachable if the two columns were written apart. Refusing beats
+        # returning a vocabulary whose columns are off by one.
+        return None
+
+    return Vocabulary(feature_version=row.feature_version, terms=terms, idf=idf)
 
 
 def load(session, feature_version: str) -> dict[int, Writeprint]:
