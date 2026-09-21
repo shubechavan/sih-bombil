@@ -2,4 +2,4 @@
 
 from __future__ import annotations
 
-__all__ = ["actors", "export", "graph", "recon", "scan", "timeline"]
+__all__ = ["actors", "analyze", "export", "graph", "recon", "scan", "timeline"]

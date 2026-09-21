@@ -29,6 +29,9 @@ from pydantic import BaseModel, Field
 __all__ = [
     "ActorDetail",
     "ActorSummary",
+    "AnalyseRequest",
+    "AnalyseResponse",
+    "AnalyseMatch",
     "Component",
     "Components",
     "EvidenceEntry",
@@ -311,3 +314,75 @@ class ScanJob(BaseModel):
 
 ActorDetail.model_rebuild()
 ReconReport.model_rebuild()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /analyze — arbitrary text against every stored writeprint
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AnalyseRequest(BaseModel):
+    """One paste. Text is required; everything else sharpens the B term.
+
+    There is no persona here and none is created. The text is featurised against
+    the stored vocabulary and thrown away — /analyze reads the corpus and never
+    joins it.
+    """
+
+    text: str = Field(
+        description="The text to attribute. Identifiers in it are masked before "
+                    "featurising, and the 300-character floor is applied to "
+                    "what is left.",
+    )
+    posted_at: list[datetime] = Field(
+        default_factory=list,
+        description="When the text was posted, one entry per post. Drives the "
+                    "posting-hour and day-of-week sub-signals. Omit them and B "
+                    "is unmeasured rather than zero.",
+    )
+    categories: list[str] = Field(
+        default_factory=list,
+        description="Categories the text was posted under, if known. Omit them "
+                    "and the category sub-signal is dropped and its weight "
+                    "redistributed, rather than scored as a mismatch.",
+    )
+    limit: int = Field(default=20, ge=1, le=200)
+
+
+class AnalyseMatch(BaseModel):
+    """One persona, scored against the pasted text."""
+
+    persona_id: int
+    handle: str
+    source_name: Optional[str] = None
+    actor_id: Optional[int] = None
+    actor_label: Optional[str] = None
+    score: float
+    band: str
+    components: Components
+    evidence: list[EvidenceEntry] = Field(default_factory=list)
+
+
+class AnalyseResponse(BaseModel):
+    """Ranked matches, plus what was and was not measurable about the paste.
+
+    `stylometry` and `behaviour` describe the *paste*, once, so a client does
+    not have to infer from 20 identical refusal strings that the text itself was
+    the thing that fell short.
+    """
+
+    feature_version: str
+    char_count: int = Field(
+        description="Characters of prose after identifier masking — the number "
+                    "the 300-character floor was applied to.",
+    )
+    masked_chars: int = 0
+    stylometry: Component
+    behaviour: Component
+    matches: list[AnalyseMatch] = Field(default_factory=list)
+    not_scored: list[dict] = Field(
+        default_factory=list,
+        description="Personas that could not be compared at all, with the "
+                    "reason. Absent from `matches` rather than ranked last.",
+    )
+    note: str = ""
+

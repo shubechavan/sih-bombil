@@ -416,3 +416,203 @@ def test_behaviour_can_be_built_from_timestamps_alone(built):
     parts = merged.components(-1, 1)
     assert parts is not None
     assert merged.similarity(-1, 1, omit=("category",)) is not None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture(scope="module")
+def client():
+    """The API, or skip if it or its database is not ready."""
+    fastapi_testclient = pytest.importorskip("fastapi.testclient")
+    from api.main import app  # noqa: PLC0415
+
+    with fastapi_testclient.TestClient(app) as test_client:
+        response = test_client.get("/health")
+        if response.status_code != 200:
+            pytest.skip(f"API unhealthy: {response.status_code}")
+        payload = response.json()
+        if payload.get("database") != "ok":
+            pytest.skip(f"database unavailable: {payload.get('database')}")
+        if not payload.get("ready"):
+            pytest.skip(payload.get("hint") or "pipeline has not been run")
+        yield test_client
+
+
+@pytest.fixture(scope="module")
+def persona_one():
+    """Persona 1's own corpus text and posting times, read from the database."""
+    try:
+        from sqlalchemy import select  # noqa: PLC0415
+
+        from db import Persona, Post, session_scope  # noqa: PLC0415
+
+        with session_scope() as session:
+            persona = session.get(Persona, 1)
+            if persona is None:
+                pytest.skip("persona 1 is not loaded")
+            rows = session.execute(
+                select(Post).where(Post.persona_id == 1)
+                .order_by(Post.posted_at.nullslast(), Post.id)
+            ).scalars().all()
+            parts = [persona.bio or ""]
+            for row in rows:
+                parts.append(row.title or "")
+                parts.append(row.body or "")
+            return {
+                "handle": persona.handle,
+                "text": "\n".join(p for p in parts if p).strip(),
+                "posted_at": [r.posted_at.isoformat() for r in rows if r.posted_at],
+            }
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"Postgres unavailable: {type(exc).__name__}: {exc}")
+
+
+def test_a_personas_own_text_ranks_itself_first(client, persona_one):
+    """The anti-hardcoding demo, over the wire.
+
+    Nothing about persona 1 is in the request but its prose. If the endpoint
+    does not put persona 1 on top at S = 1.000, it is not reading writeprints.
+    """
+    response = client.post("/analyze", json={
+        "text": persona_one["text"],
+        "posted_at": persona_one["posted_at"],
+        "limit": 5,
+    })
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    top = payload["matches"][0]
+    assert top["persona_id"] == 1, f"persona 1 did not rank first: {top['handle']}"
+    assert top["components"]["S"]["value"] == pytest.approx(1.0, abs=1e-4)
+    assert top["band"] == "CONFIRMED"
+
+
+def test_it_rediscovers_the_rest_of_the_actor(client, persona_one):
+    """Personas 9 and 16 share an actor with 1 and must surface without H.
+
+    This is the claim worth making to a room: no identifier is supplied, so the
+    only thing linking these three is how they write and when they post.
+    """
+    response = client.post("/analyze", json={
+        "text": persona_one["text"],
+        "posted_at": persona_one["posted_at"],
+        "limit": 5,
+    })
+    ranked = [m["persona_id"] for m in response.json()["matches"]]
+    assert ranked[:3] == [1, 16, 9], f"expected 1, 16, 9 on top; got {ranked[:3]}"
+
+
+def test_h_and_i_are_unmeasured_with_a_reason_not_zero(client, persona_one):
+    """The invariant the whole schema exists to protect."""
+    response = client.post("/analyze", json={
+        "text": persona_one["text"],
+        "posted_at": persona_one["posted_at"],
+        "limit": 3,
+    })
+    for match in response.json()["matches"]:
+        for key in ("H", "I"):
+            component = match["components"][key]
+            assert component["measured"] is False
+            assert component["value"] is None
+            assert component["reason"] and len(component["reason"]) > 40
+            assert " " in component["reason"]
+
+
+def test_unrelated_prose_does_not_confirm(client):
+    """Text nobody in the corpus wrote must not reach CONFIRMED."""
+    unrelated = (
+        "The municipal drainage subcommittee reconvened at half past two to "
+        "review the culvert inspection schedule for the lower catchment. "
+        "Members noted that the gabion baskets installed last spring have "
+        "settled within tolerance and require no further remediation. "
+    ) * 3
+    response = client.post("/analyze", json={
+        "text": unrelated,
+        "posted_at": ["2024-05-02T09:14:00", "2024-05-03T10:41:00"],
+        "limit": 50,
+    })
+    assert response.status_code == 200
+    bands = {m["band"] for m in response.json()["matches"]}
+    assert "CONFIRMED" not in bands, "unrelated prose was confirmed against a persona"
+
+
+def test_short_text_is_refused_but_still_scored_on_behaviour(client):
+    """Persona 7's rule, applied to a paste: 200 with S unmeasured, not an error."""
+    response = client.post("/analyze", json={
+        "text": "still setting up. first listings soon.",
+        "posted_at": ["2024-03-02T22:14:00"],
+        "limit": 3,
+    })
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert payload["stylometry"]["measured"] is False
+    assert "300-character floor" in payload["stylometry"]["reason"]
+    assert payload["char_count"] < MIN_STYLOMETRY_CHARS
+
+    assert payload["matches"], "B was measurable; the paste should still rank"
+    for match in payload["matches"]:
+        assert match["components"]["S"]["measured"] is False
+        assert match["components"]["B"]["measured"] is True
+
+
+def test_nothing_measurable_is_the_only_error(client):
+    """Under the floor *and* no timestamps — the one case with nothing to say."""
+    response = client.post("/analyze", json={"text": "too short to say anything"})
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "300-character floor" in detail
+    assert "no posting timestamps" in detail
+
+
+def test_no_timestamps_leaves_behaviour_unmeasured(client, persona_one):
+    """Omitted is not zero, here as everywhere else."""
+    response = client.post("/analyze", json={
+        "text": persona_one["text"], "limit": 3,
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["behaviour"]["measured"] is False
+    for match in payload["matches"]:
+        assert match["components"]["B"]["measured"] is False
+        assert match["components"]["B"]["value"] is None
+
+
+def test_the_refused_persona_surfaces_its_stored_reason(client, persona_one):
+    """Persona 7 is compared and declined, quoting the row the pipeline wrote."""
+    response = client.post("/analyze", json={
+        "text": persona_one["text"],
+        "posted_at": persona_one["posted_at"],
+        "limit": 50,
+    })
+    seven = [m for m in response.json()["matches"] if m["persona_id"] == 7]
+    assert seven, "persona 7 should be ranked on B, not dropped"
+    component = seven[0]["components"]["S"]
+    assert component["measured"] is False
+    assert "300-character floor" in component["reason"]
+    assert "persona 7" in component["reason"]
+
+
+def test_a_thin_posting_profile_says_so(client):
+    """Two timestamps can align by luck; the evidence must not hide that."""
+    unrelated = ("Quarterly maintenance of the pumping station proceeded without "
+                 "incident and the logs were countersigned by the duty engineer. ") * 4
+    response = client.post("/analyze", json={
+        "text": unrelated, "posted_at": ["2024-05-02T09:14:00"], "limit": 1,
+    })
+    details = " ".join(e["detail"] for e in response.json()["matches"][0]["evidence"])
+    assert "timestamp" in details and "coincidence" in details
+
+
+def test_the_evidence_names_the_transform(client, persona_one):
+    """An analyst must be able to see it was not refitted on their paste."""
+    response = client.post("/analyze", json={
+        "text": persona_one["text"],
+        "posted_at": persona_one["posted_at"],
+        "limit": 1,
+    })
+    details = " ".join(e["detail"] for e in response.json()["matches"][0]["evidence"])
+    assert "not refitted" in details
+    assert "identifiers masked" in details

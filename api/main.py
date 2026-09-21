@@ -23,7 +23,15 @@ from fastapi.responses import JSONResponse  # noqa: E402
 from sqlalchemy import func, select  # noqa: E402
 
 from api.deps import SITE_LEVEL_NOTE, get_session  # noqa: E402
-from api.routers import actors, export, graph, recon, scan, timeline  # noqa: E402
+from api.routers import (  # noqa: E402
+    actors,
+    analyze,
+    export,
+    graph,
+    recon,
+    scan,
+    timeline,
+)
 from db import (  # noqa: E402
     Actor,
     InfraFinding,
@@ -91,6 +99,7 @@ async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
 
 
 app.include_router(actors.router)
+app.include_router(analyze.router)
 app.include_router(graph.router)
 app.include_router(timeline.router)
 app.include_router(recon.router)
