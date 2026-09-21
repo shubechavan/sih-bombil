@@ -74,6 +74,8 @@ from db import (  # noqa: E402
     PersonaIdentifier,
     Post,
     Scan,
+    finish_scan,
+    record_scan,
     Source,
     require_schema,
     session_scope,
@@ -675,18 +677,16 @@ def main() -> int:
     with session_scope() as session:
         require_schema(session)
 
-        scan = Scan(
-            operator_id=operator,
+        scan = record_scan(
+            session,
+            operator=operator,
             mode="manual",
             data_source=args.source,
             query="ingest",
             sources_touched=sources_touched,
             action_hash=action_hash,
             started_at=started,
-            status="running",
         )
-        session.add(scan)
-        session.flush()
 
         try:
             source_ids = upsert_sources(session, documents)
@@ -696,15 +696,10 @@ def main() -> int:
                 session, extracted, documents, persona_ids
             )
         except Exception as exc:
-            scan.status = "failed"
-            scan.error = str(exc)[:2000]
-            scan.finished_at = utcnow()
+            finish_scan(session, scan, status="failed", error=exc)
             raise
 
-        scan.personas_new = new_personas
-        scan.status = "ok"
-        scan.finished_at = utcnow()
-        session.flush()
+        finish_scan(session, scan, personas_new=new_personas)
 
         print(f"\n  wrote {len(persona_ids)} personas ({new_personas} new), "
               f"{posts_written} posts, {identifiers} identifiers, "

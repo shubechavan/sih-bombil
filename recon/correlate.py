@@ -606,7 +606,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("\n  dry run: nothing written")
         return 0
 
-    from db import Scan, require_schema, session_scope, utcnow  # noqa: PLC0415
+    from db import (  # noqa: PLC0415
+        finish_scan, record_scan, require_schema, session_scope, utcnow,
+    )
 
     operator = args.operator or os.environ.get("OPERATOR_ID") or "unknown"
     action_hash = payload_hash(correlations)
@@ -614,28 +616,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     with session_scope() as session:
         require_schema(session)
-        scan = Scan(
-            operator_id=operator,
+        scan = record_scan(
+            session,
+            operator=operator,
             mode="manual",
             data_source=args.source,
             query=f"recon.correlate[{provider.name}]",
             sources_touched=sorted({c.onion_url for c in correlations}),
             action_hash=action_hash,
             started_at=started,
-            status="running",
         )
-        session.add(scan)
-        session.flush()
         try:
             written = write_correlations(session, correlations)
         except Exception as exc:
-            scan.status = "failed"
-            scan.error = str(exc)[:2000]
-            scan.finished_at = utcnow()
+            finish_scan(session, scan, status="failed", error=exc)
             raise
-        scan.status = "ok"
-        scan.finished_at = utcnow()
-        session.flush()
+        finish_scan(session, scan)
         print(f"\n  wrote {written} infra_correlations row(s)")
         print(f"  audit row: scan id {scan.id}, operator {operator}, "
               f"sha256 {action_hash[:16]}...")

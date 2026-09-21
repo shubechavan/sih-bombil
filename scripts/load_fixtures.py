@@ -47,6 +47,8 @@ from db import (  # noqa: E402
     PersonaIdentifier,
     Post,
     Scan,
+    finish_scan,
+    record_scan,
     Source,
     require_schema,
     session_scope,
@@ -502,18 +504,16 @@ def main() -> int:
             ))
             print("\nreset: data tables truncated (scans preserved)")
 
-        scan = Scan(
-            operator_id=operator,
+        scan = record_scan(
+            session,
+            operator=operator,
             mode="manual",
             data_source="fixtures",
             query="load_fixtures",
             sources_touched=[s["name"] for s in corpus["sources"]],
             action_hash=action_hash,
             started_at=started,
-            status="running",
         )
-        session.add(scan)
-        session.flush()
 
         try:
             load_sources(session, corpus["sources"])
@@ -522,15 +522,10 @@ def main() -> int:
             posts_loaded = load_posts(session, corpus["posts"])
             infra_loaded = load_infra(session, corpus["infra"])
         except Exception as exc:
-            scan.status = "failed"
-            scan.error = str(exc)[:2000]
-            scan.finished_at = utcnow()
+            finish_scan(session, scan, status="failed", error=exc)
             raise
 
-        scan.personas_new = personas_loaded
-        scan.status = "ok"
-        scan.finished_at = utcnow()
-        session.flush()
+        finish_scan(session, scan, personas_new=personas_loaded)
 
         print(f"\n  loaded {personas_loaded} personas, {stored} identifiers, "
               f"{posts_loaded} posts, {infra_loaded} infra findings")

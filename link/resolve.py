@@ -72,6 +72,8 @@ from db import (  # noqa: E402
     PersonaIdentifier,
     Post,
     Scan,
+    finish_scan,
+    record_scan,
     require_schema,
     session_scope,
     utcnow,
@@ -606,16 +608,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     with session_scope() as session:
         require_schema(session)
 
-        scan = Scan(
-            operator_id=operator, mode="manual", data_source=args.source,
+        scan = record_scan(
+            session,
+            operator=operator, mode="manual", data_source=args.source,
             query=f"resolve --preset {args.preset}",
             sources_touched=sorted(
                 {str(p["source_id"]) for p in corpus.personas.values()}
             ),
-            action_hash=action_hash, started_at=started, status="running",
+            action_hash=action_hash, started_at=started,
         )
-        session.add(scan)
-        session.flush()
 
         try:
             prints_written = stylometry_module.store(
@@ -625,14 +626,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
             written = store_links(session, results, min_score=args.min_score)
         except Exception as exc:
-            scan.status = "failed"
-            scan.error = str(exc)[:2000]
-            scan.finished_at = utcnow()
+            finish_scan(session, scan, status="failed", error=exc)
             raise
 
-        scan.links_new = written
-        scan.status = "ok"
-        scan.finished_at = utcnow()
+        finish_scan(session, scan, links_new=written)
 
         refused = len(writeprints.refused)
         print(f"\n  wrote {written} links (method='pairwise') and "

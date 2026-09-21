@@ -75,7 +75,13 @@ for _stream in (sys.stdout, sys.stderr):
 
 from sqlalchemy import text as sql  # noqa: E402
 
-from db import Scan, require_schema, session_scope, utcnow  # noqa: E402
+from db import (  # noqa: E402
+    finish_scan,
+    record_scan,
+    require_schema,
+    session_scope,
+    utcnow,
+)
 from link import cluster as cluster_module  # noqa: E402
 from link import stylometry as stylometry_module  # noqa: E402
 from link.resolve import load_corpus, resolve_pairs, store_links  # noqa: E402
@@ -237,16 +243,14 @@ def run_tick(*, source: str = "fixtures", input_path: Optional[Path] = None,
         with session_scope() as session:
             require_schema(session)
 
-            scan = Scan(
-                operator_id=operator,
+            scan = record_scan(
+                session,
+                operator=operator,
                 mode="scheduled",
                 data_source=source,
                 query="scheduler.tick",
                 started_at=result.started_at,
-                status="running",
             )
-            session.add(scan)
-            session.flush()
             result.scan_ids.append(scan.id)
 
             rows = feedback_rows = None
@@ -344,15 +348,15 @@ def run_tick(*, source: str = "fixtures", input_path: Optional[Path] = None,
                 "actors": result.actors_written,
             }, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
-            scan.action_hash = result.action_hash
-            scan.personas_new = result.personas_new
-            scan.links_new = result.links_written
-            scan.sources_touched = sorted({
-                str(p.get("source_id")) for p in corpus.personas.values()
-            })
-            scan.status = "ok"
-            scan.finished_at = utcnow()
-            session.flush()
+            finish_scan(
+                session, scan,
+                action_hash=result.action_hash,
+                personas_new=result.personas_new,
+                links_new=result.links_written,
+                sources_touched=sorted({
+                    str(p.get("source_id")) for p in corpus.personas.values()
+                }),
+            )
 
     except Exception as exc:  # noqa: BLE001 - a tick must not kill the schedule
         result.status = "failed"
