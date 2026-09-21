@@ -275,3 +275,95 @@ def test_health_is_not_audited(client):
     # The two /audit calls above are themselves logged; the three /health calls
     # must not be. Allow for the audit reads, disallow the health polls.
     assert after - before <= 2, "health polls are being written to the audit log"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scan jobs, now that they live in the table
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_a_job_is_a_row_not_a_dict(client):
+    """The job survives the process, so a second client can still read it."""
+    started = client.post("/scan", json={"steps": ["ingest"]},
+                          headers=headers(client, ADMIN))
+    assert started.status_code == 202, started.text
+    job_id = started.json()["job_id"]
+
+    # A fresh TestClient is a fresh app lifespan — the old dict would be gone.
+    fastapi_testclient = pytest.importorskip("fastapi.testclient")
+    from api.main import app  # noqa: PLC0415
+
+    with fastapi_testclient.TestClient(app) as second:
+        login = second.post(
+            "/auth/login", json={"username": ADMIN[0], "password": ADMIN[1]}
+        )
+        second.headers.update(
+            {"Authorization": f"Bearer {login.json()['access_token']}"}
+        )
+        response = second.get(f"/scan/{job_id}")
+
+    assert response.status_code == 200, "the job did not survive a restart"
+    assert response.json()["steps"] == ["ingest"]
+
+
+def test_scan_ids_name_only_this_jobs_steps(client):
+    """The old filter was "every row since this job started", with no owner.
+
+    A concurrent CLI run or scheduler tick was reported as part of the job.
+    """
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+
+    started = client.post("/scan", json={"steps": ["ingest"]},
+                          headers=headers(client, ADMIN))
+    job_id = started.json()["job_id"]
+
+    # Something else touches the audit table after the job began.
+    subprocess.run(
+        [sys.executable, "-m", "link.cluster", "--source", "db"],
+        cwd=str(ROOT), capture_output=True, text=True, timeout=300,
+    )
+
+    payload = client.get(f"/scan/{job_id}", headers=headers(client, ADMIN)).json()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from db import Scan, session_scope  # noqa: PLC0415
+
+    with session_scope() as session:
+        queries = [
+            row[0] for row in session.execute(
+                select(Scan.query).where(Scan.id.in_(payload["scan_ids"]))
+            ).all()
+        ]
+
+    assert queries, "the job reported no steps at all"
+    assert not any("cluster" in (q or "") for q in queries), (
+        f"a concurrent run was reported as part of this job: {queries}"
+    )
+
+
+def test_an_interrupted_job_is_reaped_rather_than_left_running(client):
+    """A BackgroundTask cannot outlive its worker; say so instead of lying."""
+    from api.routers.scan import reap_interrupted_jobs  # noqa: PLC0415
+    from db import record_scan, session_scope  # noqa: PLC0415
+
+    with session_scope() as session:
+        row = record_scan(
+            session, operator="pytest", mode="api", query="scan job",
+            status="running", job_id="pytest-interrupted", steps=["ingest"],
+        )
+        row.stage = "ingest"
+
+    reaped = reap_interrupted_jobs()
+    assert reaped >= 1
+
+    payload = client.get("/scan/pytest-interrupted",
+                         headers=headers(client, ADMIN)).json()
+    assert payload["status"] == "failed"
+    assert "restart" in payload["error"]
+
+
+def test_an_unknown_job_is_a_404(client):
+    response = client.get("/scan/no-such-job", headers=headers(client, ADMIN))
+    assert response.status_code == 404
+

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -33,6 +34,7 @@ from api.auth import (  # noqa: E402
     principal_from_request,
 )
 from api.deps import SITE_LEVEL_NOTE, get_session  # noqa: E402
+from api.routers.scan import reap_interrupted_jobs  # noqa: E402
 from api.routers import (  # noqa: E402
     actors,
     analyze,
@@ -72,10 +74,32 @@ the reason is a sentence the pipeline wrote, not a blank.
 Outputs are investigative leads requiring corroboration, never conclusions.
 """
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Tidy up after whatever killed the last process.
+
+    A scan job is a BackgroundTask, so it cannot outlive the worker that owns
+    it. Any job row still reading `queued` or `running` when we start is not
+    running — it died with the previous process. Marking it failed is the
+    honest record; leaving it would be a status that never changes again.
+
+    Never fatal: an API that will not boot because it could not tidy the audit
+    table is worse than one carrying a few stale rows.
+    """
+    try:
+        reaped = reap_interrupted_jobs()
+        if reaped:
+            print(f"  marked {reaped} interrupted scan job(s) as failed")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  could not reap interrupted scan jobs: {type(exc).__name__}: {exc}")
+    yield
+
+
 app = FastAPI(
     title="Dark Sentinel v2 — Attribution API",
     description=DESCRIPTION,
     version="2.0",
+    lifespan=lifespan,
 )
 
 _origins = [

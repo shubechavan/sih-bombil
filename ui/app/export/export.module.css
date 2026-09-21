@@ -98,3 +98,10 @@
 	font-size: 0.78rem;
 	color: var(--ds-critical, #f87171);
 }
+
+.note {
+	margin: var(--ds-space-3) 0 0;
+	font-size: 0.78rem;
+	line-height: 1.6;
+	color: var(--ds-text-secondary);
+}

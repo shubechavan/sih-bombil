@@ -3,6 +3,7 @@
 import { RefusalNotice } from "@/components/attribution";
 import { TacticalPanel } from "@/components/tactical";
 import { Button, Select, Toggle } from "@/components/ui";
+import { useAuthStore } from "@/stores/auth";
 import { Download, Play } from "lucide-react";
 import { useState } from "react";
 import styles from "./export.module.css";
@@ -72,6 +73,7 @@ export default function ExportPage() {
 		null,
 	);
 	const [scanError, setScanError] = useState<string | null>(null);
+	const canScan = useAuthStore((state) => state.identity?.can_scan ?? false);
 
 	function changeDataset(next: Dataset) {
 		setDataset(next);
@@ -208,7 +210,17 @@ export default function ExportPage() {
 				</div>
 			</TacticalPanel>
 
-			<TacticalPanel title="Run the pipeline" subtitle="each step writes its own audit row">
+			{/* Running the pipeline rewrites the links table, so it is admin-only
+			    on the API. Showing an analyst a button that will 403 teaches them
+			    the restriction by refusing them; saying so does not. */}
+			<TacticalPanel
+				title="Run the pipeline"
+				subtitle={
+					canScan
+						? "each step writes its own audit row"
+						: "admin only — each step rewrites what every analyst reads"
+				}
+			>
 				<div className={styles.steps}>
 					{SCAN_STEPS.map((step) => (
 						<Toggle
@@ -226,7 +238,11 @@ export default function ExportPage() {
 					))}
 				</div>
 				<div className={styles.actions}>
-					<Button onClick={runScan} disabled={steps.length === 0 || job?.status === "running"}>
+					<Button
+						type="button"
+						onClick={runScan}
+						disabled={!canScan || steps.length === 0 || job?.status === "running"}
+					>
 						<Play size={14} /> Start scan
 					</Button>
 					{job && (
@@ -236,7 +252,17 @@ export default function ExportPage() {
 						</span>
 					)}
 				</div>
-				{scanError && <p className={styles.error}>{scanError}</p>}
+				{!canScan && (
+					<p className={styles.note}>
+						Your role is analyst. Exports above are yours to run; starting a pipeline run is an
+						admin action because it changes what everyone else sees.
+					</p>
+				)}
+				{scanError && (
+					<p className={styles.error} role="alert">
+						{scanError}
+					</p>
+				)}
 			</TacticalPanel>
 		</div>
 	);
