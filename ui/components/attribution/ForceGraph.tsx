@@ -161,6 +161,10 @@ export function ForceGraph({
 			// contradiction — axe reports it as nested-interactive. This graph is
 			// genuinely both a picture and a set of controls, and group is the
 			// role that admits that.
+			//
+			// biome-ignore lint/a11y/useSemanticElements: the semantic element the
+			// rule wants is <fieldset>, which cannot contain SVG shapes. Same
+			// reason as the role="button" edges below.
 			role="group"
 			aria-label={`Persona link graph: ${positionedNodes.length} personas, ${positionedEdges.length} attribution links${
 				drawnTrust.length > 0

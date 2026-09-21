@@ -1,0 +1,182 @@
+# CI for Dark Sentinel v2.
+#
+# Four jobs, all blocking. The python job runs against a real Postgres and a
+# seeded corpus on purpose: roughly 50 of the tests skip themselves when there
+# is no database, and a suite that goes green by skipping the half that touches
+# persistence is not telling you anything. The browser job boots the actual
+# compose stack, which is the only way to find out whether the demo path still
+# works before standing in front of a room with it.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Not a secret. This whole workflow runs against a throwaway database with a
+  # synthetic corpus in it; a real deployment sets its own.
+  JWT_SECRET: ci-signing-key-not-a-real-one
+  DEMO_ANALYST_PASSWORD: analyst-demo
+  DEMO_ADMIN_PASSWORD: admin-demo
+
+jobs:
+  python:
+    name: pytest
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: darksentinel
+          POSTGRES_DB: darksentinel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PG_URL: postgresql://postgres:darksentinel@localhost:5432/darksentinel
+      OPERATOR_ID: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # The same chain docker-compose's seed service runs. Without it the API
+      # tests skip on `ready: false` and the DB tests skip on a missing schema.
+      - name: Apply schema and seed the corpus
+        run: |
+          python scripts/apply_schema.py
+          python scripts/load_fixtures.py --reset
+          python scripts/ingest.py --source fixtures
+          python scripts/load_feedback.py --source fixtures
+          python -m link.resolve --source db
+          python -m link.cluster --source db
+          python -m recon.fingerprint --source fixtures
+          python -m recon.correlate --source db
+          python scripts/seed_users.py
+
+      - name: pytest
+        run: python -m pytest -q
+
+      # The headline claim of the project. If this drifts, the README is wrong
+      # and so is the demo script.
+      - name: Evaluation figures
+        run: python scripts/evaluate.py --source db
+
+  ui:
+    name: biome · tsc · build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+
+  docker:
+    name: images build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: API image
+        run: docker build -t dark-sentinel-v2-api:ci .
+
+      - name: UI image
+        run: docker build -t dark-sentinel-v2-ui:ci ./ui
+
+      # Not a threshold that fails the build — image sizes move for legitimate
+      # reasons — but a number in the log, so a regression from the standalone
+      # build back to a 2 GB image is visible rather than discovered later.
+      - name: Report image sizes
+        run: docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' | grep ':ci'
+
+  browser:
+    name: browser checks
+    runs-on: ubuntu-latest
+    # Boots the real stack, so it depends on the images being buildable at all.
+    needs: [docker]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # verify-pages.mjs drives a *system* browser by channel; playwright-core
+      # bundles none. setup-chrome provides one.
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+        working-directory: ui
+
+      - name: Boot the stack
+        run: |
+          cp .env.example .env
+          docker compose up -d --build db api ui
+          docker compose run --rm seed
+
+      - name: Wait for the console
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/health | grep -q '"ready":true'; then
+              echo "api ready"; break
+            fi
+            sleep 5
+          done
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:3000/login; then
+              echo "ui ready"; break
+            fi
+            sleep 5
+          done
+
+      # One retry, and only for a browser that would not launch. Exit 75 is
+      # "could not find or start Chrome"; exit 1 is a failed assertion and must
+      # fail the build on the first attempt, not get a second roll of the dice.
+      - name: Browser checks
+        run: |
+          set +e
+          node ui/scripts/verify-pages.mjs http://localhost:3000
+          code=$?
+          if [ "$code" -eq 75 ]; then
+            echo "::warning::browser failed to launch; retrying once"
+            node ui/scripts/verify-pages.mjs http://localhost:3000
+            code=$?
+          fi
+          exit "$code"
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose logs --tail 80

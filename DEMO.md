@@ -228,7 +228,7 @@ and the one moment the engine argues against itself. Steps 7 and 8 are the Phase
 | precision / recall | 1.000 at every band / 6 of 8 pairwise, 8 of 8 with closure |
 | separation margin | +0.508 → +0.287 under site-broadcast |
 | corpus | 20 personas, 3 sources, 200 posts, 14 actors — matches the answer key exactly |
-| tests | 360 Python, 34 browser checks |
+| tests | 388 Python, 49 browser checks |
 | the crawl | 20 personas, 200 posts, 33 requests, 74 s — all 424 fields byte-identical |
 | shared buyers | ROC-AUC 0.389, worse than chance — measured, then not used |
 | the floor | 300 characters; paperghost has 152 |

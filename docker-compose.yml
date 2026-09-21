@@ -77,6 +77,9 @@ services:
       PG_URL: postgresql://${PG_USER:-postgres}:${PG_PASSWORD:-darksentinel}@db:5432/${PG_DB:-darksentinel}
       TOR_SOCKS: socks5h://tor:9050
       OPERATOR_ID: ${OPERATOR_ID:-unknown}
+      # Signs the session tokens. The default is a demo value and says so;
+      # changing it signs everyone out, which is the intended behaviour.
+      JWT_SECRET: ${JWT_SECRET:-change-me-this-is-a-demo-secret-not-a-real-one}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SHODAN_API_KEY: ${SHODAN_API_KEY:-}
       # The browser talks to the console, which proxies; this is the console's
@@ -164,6 +167,8 @@ services:
     environment:
       PG_URL: postgresql://${PG_USER:-postgres}:${PG_PASSWORD:-darksentinel}@db:5432/${PG_DB:-darksentinel}
       OPERATOR_ID: ${OPERATOR_ID:-seed}
+      DEMO_ANALYST_PASSWORD: ${DEMO_ANALYST_PASSWORD:-analyst-demo}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-admin-demo}
     depends_on:
       db:
         condition: service_healthy
@@ -176,6 +181,7 @@ services:
              python -m link.cluster  --source db &&
              python -m recon.fingerprint --source fixtures &&
              python -m recon.correlate  --source db &&
+             python scripts/seed_users.py &&
              python scripts/evaluate.py --source db"
 
 volumes:

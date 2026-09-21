@@ -13,6 +13,9 @@
  * component change, and the ones worth failing a build over.
  *
  *   node scripts/verify-pages.mjs [baseUrl]
+ *
+ * Exit codes: 0 everything passed, 1 an assertion failed, 75 no browser could
+ * be launched. CI retries 75 and only 75 — see .github/workflows/ci.yml.
  */
 
 import { readFileSync } from "node:fs";
@@ -34,6 +37,15 @@ function check(name, ok, detail = "") {
 	console.log(`${mark}  ${name}${detail && !ok ? ` — ${detail}` : ""}`);
 }
 
+/**
+ * Exit code for "the browser would not start".
+ *
+ * Kept distinct from 1 so CI can retry a launch flake without retrying a failed
+ * assertion. A suite that gets a second attempt at its own failures is not a
+ * suite, and "just retry it" is how a real regression ends up merged.
+ */
+const E_NO_BROWSER = 75;
+
 async function launch() {
 	let lastError;
 	for (const channel of CHANNELS) {
@@ -43,9 +55,10 @@ async function launch() {
 			lastError = err;
 		}
 	}
-	throw new Error(
+	console.error(
 		`No system browser available (tried ${CHANNELS.join(", ")}): ${lastError?.message}`,
 	);
+	process.exit(E_NO_BROWSER);
 }
 
 /**

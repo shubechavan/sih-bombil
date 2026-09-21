@@ -1,9 +1,10 @@
 # Dark Sentinel v2 — Dark Web Threat Actor Attribution Platform
 
-[![Tests](https://img.shields.io/badge/pytest-309%20passed-brightgreen.svg)](tests/)
-[![UI checks](https://img.shields.io/badge/browser%20checks-27%20passed-brightgreen.svg)](ui/scripts/verify-pages.mjs)
+[![CI](https://github.com/shubechavan/sih-bombil/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/pytest-388%20passed-brightgreen.svg)](tests/)
+[![UI checks](https://img.shields.io/badge/browser%20checks-49%20passed-brightgreen.svg)](ui/scripts/verify-pages.mjs)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-blue.svg)](requirements.txt)
-[![Status](https://img.shields.io/badge/status-Phases%200--5%20complete-brightgreen.svg)](docs/BUILD_PLAN.md)
+[![Status](https://img.shields.io/badge/status-Phases%200--7%20complete-brightgreen.svg)](docs/BUILD_PLAN.md)
 [![Use](https://img.shields.io/badge/use-Authorized%20Investigative%20Only-red.svg)](#legal--operational-disclaimer)
 
 > Operators are not caught because Tor's cryptography fails. They are caught because the same
@@ -561,7 +562,7 @@ api/               FastAPI: actors, graph, timeline, recon, scan, export + schem
 export/            report.py — the PDF case report
 fixtures/          synthetic corpus + ground_truth.json
 scripts/           apply_schema, load_fixtures, ingest, evaluate, scheduler, generators
-tests/             12 pytest modules, 330 tests
+tests/             14 pytest modules, 388 tests
 ui/                Next.js console: /actors /actors/[id] /graph /timeline /export
 legacy/            v1 code kept for reuse — darksearch, llm, obfuslex, alert_api
 Dockerfile         the Python image: API, pipeline, scheduler
@@ -571,7 +572,7 @@ docker-compose.yml postgres + tor + api + ui, plus `seed` and `lab` profiles
 
 ## Test suite
 
-`python -m pytest -q` → **330 passed**, plus 34 browser checks via
+`python -m pytest -q` → **388 passed**, plus 49 browser checks via
 `node ui/scripts/verify-pages.mjs`.
 
 | module | covers |
