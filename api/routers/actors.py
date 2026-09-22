@@ -29,9 +29,11 @@ from api.queries import (  # noqa: E402
     posts_for,
     trust_edges_for,
 )
+from link.leads import leads_for_personas  # noqa: E402
 from api.schemas import (  # noqa: E402
     ActorDetail,
     ActorSummary,
+    LeadEntry,
     PersonaDetail,
     TimelineBucket,
 )
@@ -41,6 +43,16 @@ router = APIRouter(tags=["actors"])
 
 #: Shown beside the trust edges on the profile. The text is the point: an
 #: overlap number on an actor page without it reads as corroboration.
+LEADS_NOTE = (
+    "Pointers outside the dark web, derived from identifiers this actor "
+    "published and from infrastructure behind the sites they post on. Each "
+    "carries a band and a sentence on what it does not prove. There is no "
+    "number here on purpose: nothing in the corpus records which real person "
+    "is behind an actor, so a confidence score would have the shape of a "
+    "measurement and none of the substance. Leads to corroborate, never "
+    "conclusions — and none of this reaches the attribution score."
+)
+
 TRUST_NOTE = (
     "Shared buyers between this actor's vendors and others. Relationship "
     "context only — measured against ground truth, buyer overlap separates "
@@ -203,6 +215,7 @@ def collect_actor_detail(session, actor_id: int, *,
     base = _summary(row, {actor_id: members}, identifier_counts)
 
     trust = trust_edges_for(session, persona_ids)
+    leads = leads_for_personas(session, persona_ids)
 
     return ActorDetail(
         **base.model_dump(),
@@ -216,6 +229,15 @@ def collect_actor_detail(session, actor_id: int, *,
                            personas=len(persona_buckets.get(key, ())))
             for key in sorted(buckets)
         ],
+        leads=[
+            LeadEntry(
+                kind=lead.kind, value=lead.value, band=lead.band,
+                why=lead.why, caveat=lead.caveat, scope=lead.scope,
+                personas=list(lead.personas), url=lead.url, detail=lead.detail,
+            )
+            for lead in leads
+        ],
+        leads_note=LEADS_NOTE if leads else "",
     )
 
 

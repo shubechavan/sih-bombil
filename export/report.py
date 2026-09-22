@@ -402,6 +402,72 @@ def render_actor(actor: dict, s, *, page_width: float) -> list:
         flow.append(KeepTogether(block))
         flow.append(Spacer(1, 3 * mm))
 
+    flow.extend(_leads_section(actor, s, page_width=page_width))
+
+    return flow
+
+
+#: Band colours for clearnet leads. Deliberately not BAND_HEX: an attribution
+#: band is a measured score and a lead band is a judgement, and giving them the
+#: same palette would invite a reader to treat them as the same kind of claim.
+LEAD_HEX = {"STRONG": "#8a4b12", "MODERATE": "#5b6472", "WEAK": "#7a8290"}
+
+
+def _leads_section(actor: dict, s, *, page_width: float) -> list:
+    """Pointers outside Tor, with what each one does not prove.
+
+    Split by scope. The actor's own identifiers come first; infrastructure
+    behind the sites they post on follows under its own heading, because every
+    vendor on a marketplace shares its hosting and a merged list would read as
+    though this actor rented the server.
+    """
+    leads = actor.get("leads") or []
+    if not leads:
+        return []
+
+    flow: list = [Spacer(1, 2 * mm),
+                  Paragraph("Clearnet leads", s["h2"])]
+    if actor.get("leads_note"):
+        flow.append(Paragraph(_esc(actor["leads_note"]), s["small"]))
+    flow.append(Spacer(1, 2 * mm))
+
+    for scope, heading in (
+        ("actor", "Published by this actor"),
+        ("source", "Infrastructure behind the sites they post on"),
+    ):
+        group = [lead for lead in leads if (lead.get("scope") or "actor") == scope]
+        if not group:
+            continue
+
+        flow.append(Paragraph(f"<b>{heading}</b>", s["body"]))
+        flow.append(Spacer(1, 1.5 * mm))
+
+        rows = [[Paragraph("<b>Band</b>", s["cell"]),
+                 Paragraph("<b>Lead</b>", s["cell"]),
+                 Paragraph("<b>How it was found, and what it does not prove</b>",
+                           s["cell"])]]
+        for lead in group:
+            band = lead.get("band", "WEAK")
+            value = _esc(lead.get("value") or "")
+            detail = lead.get("detail") or {}
+            extra = ", ".join(
+                str(detail[key]) for key in ("org", "asn", "country")
+                if detail.get(key)
+            )
+            rows.append([
+                Paragraph(f"<font color='{LEAD_HEX.get(band, '#7a8290')}'>"
+                          f"<b>{band}</b></font>", s["cell"]),
+                Paragraph(f"<b>{value}</b><br/><font color='#7a8290'>"
+                          f"{_esc(lead.get('kind') or '')}"
+                          f"{f' · {_esc(extra)}' if extra else ''}</font>",
+                          s["cell"]),
+                Paragraph(f"{_esc(lead.get('why') or '')}<br/>"
+                          f"<font color='#7a8290'>{_esc(lead.get('caveat') or '')}"
+                          f"</font>", s["cell"]),
+            ])
+        flow.append(_table(rows, [20 * mm, 52 * mm, page_width - 72 * mm], s))
+        flow.append(Spacer(1, 2.5 * mm))
+
     return flow
 
 

@@ -36,6 +36,7 @@ from db import (  # noqa: E402
 
 __all__ = [
     "derived_lookup",
+    "source_reliability",
     "identifiers_for",
     "link_summaries",
     "persona_summaries",
@@ -52,6 +53,20 @@ TRUST_MIN_SHARED = 2
 
 def source_names(session) -> dict[int, str]:
     return {row.id: row.name for row in session.execute(select(Source)).scalars()}
+
+
+def source_reliability(session) -> dict[int, Optional[float]]:
+    """source id -> its reliability weight, 0..1.
+
+    Stored since Phase 0 and read by nothing until now. It is shown beside a
+    persona rather than folded into any score: whether it *should* weight
+    evidence is a measured question, and scripts/measure_reliability.py answers
+    it with numbers instead of an assumption.
+    """
+    return {
+        row.id: row.reliability
+        for row in session.execute(select(Source)).scalars()
+    }
 
 
 def derived_lookup(session) -> dict[tuple[str, str], bool]:
@@ -94,6 +109,7 @@ def persona_summaries(session, persona_ids: Optional[Iterable[int]] = None
         statement = statement.where(Persona.id.in_(ids))
 
     names = source_names(session)
+    reliability = source_reliability(session)
     refused = _refusals(session)
     counts = dict(
         session.execute(
@@ -110,6 +126,7 @@ def persona_summaries(session, persona_ids: Optional[Iterable[int]] = None
             handle_normalized=row.handle_normalized,
             source_id=row.source_id,
             source_name=names.get(row.source_id),
+            source_reliability=reliability.get(row.source_id),
             category=row.category,
             post_count=counts.get(row.id, row.post_count or 0),
             stylometry_refused=row.id in refused,

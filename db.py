@@ -454,6 +454,10 @@ class WriteprintVocab(Base):
     terms: Mapped[Optional[list]] = mapped_column(JSONB)
     idf: Mapped[Optional[bytes]] = mapped_column(LargeBinary)
     n_features: Mapped[Optional[int]] = mapped_column(Integer)
+    #: scikit-learn and numpy versions that produced this fit. See the column
+    #: note in schema_v2.sql: feature_version identifies the inputs, this
+    #: identifies the code, and a vocabulary is only usable when both agree.
+    toolchain: Mapped[Optional[str]] = mapped_column(Text)
     built_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
 
     def __repr__(self) -> str:
@@ -569,6 +573,12 @@ class InfraCorrelation(Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     evidence: Mapped[Optional[list]] = mapped_column(JSONB)
     provider: Mapped[Optional[str]] = mapped_column(Text)
+    #: The hosting entity behind `clearnet_host`. A host name is a label; the
+    #: ASN and its registered org are the company that can be served process,
+    #: which is what link/leads.py reports as the real-world lead.
+    clearnet_asn: Mapped[Optional[str]] = mapped_column(Text)
+    clearnet_org: Mapped[Optional[str]] = mapped_column(Text)
+    clearnet_country: Mapped[Optional[str]] = mapped_column(Text)
     observed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
 
     finding: Mapped[Optional["InfraFinding"]] = relationship(back_populates="correlations")

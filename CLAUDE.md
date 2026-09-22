@@ -88,6 +88,48 @@ a score with no reasons is not shippable.
 - Tests are pytest in `tests/`. For `score/` and `link/`, write the test first.
 - Commit after every working phase.
 
+## Local environment
+
+**Use `.venv`, built on Python 3.11 — the version the Dockerfile pins.**
+
+```bash
+py -3.11 -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt pytest httpx
+.venv/Scripts/python -m pytest -q
+```
+
+`numpy==1.26.4` is pinned and has no wheels for Python 3.13, so a 3.13
+interpreter silently resolves numpy 2.x — which computes the behavioural cosine
+one unit in the last place differently. Measured: B(1~16) is
+`0.8581920990542637` under the pin, `...636` under numpy 2.2.1.
+
+**Verify the attribution numbers in the container, not locally.**
+
+```bash
+docker compose exec api python scripts/evaluate.py
+docker compose exec api python -m link.resolve --source db
+```
+
+The venv fixes the numpy drift and is right for running tests. It does **not**
+reproduce the stored writeprint vectors, and that is not a version problem:
+scikit-learn 1.6.1 on Windows and the identical version on Linux fit different
+TF-IDF vocabularies from byte-identical text. Measured — every one of the 20
+vector hashes changes and S moves about 0.002. No band moves and
+`scripts/evaluate.py` prints the same precision, recall and margin either way,
+but `links.s_score` and `writeprints.vector` belong to whichever platform last
+refit them.
+
+The container is the reference because CI and the demo run it. A local full
+suite can trigger a refit through the scheduler tests, so after one, restore
+with `docker compose exec api python -m link.resolve --source db` followed by
+`link.cluster` before trusting a numbers diff.
+
+`writeprint_vocab.toolchain` records the fit's library versions and platform,
+and a vocabulary from a different one is refused rather than used. It has to be:
+a vocabulary fitted by one toolchain and vectors by another transform cleanly
+and mean nothing — measured, a persona's self-similarity fell from 1.000 to
+0.620 with no error anywhere.
+
 ## Commands
 
 ```bash
@@ -105,9 +147,17 @@ pytest -q
 ```
 PG_HOST PG_PORT PG_DB PG_USER PG_PASSWORD
 TOR_SOCKS=socks5h://127.0.0.1:9050
-ANTHROPIC_API_KEY
 SHODAN_API_KEY        # optional, correlation falls back to fixtures
 OPERATOR_ID           # written into the audit log
+JWT_SECRET            # signs session tokens; any long random string
+
+# Behavioural profiling. Optional — with no key the profile falls back to a
+# deterministic rule-based summary, labelled as one. Never an Anthropic key:
+# nothing in v2 calls Anthropic.
+LLM_PROVIDER          # gemini | groq | openai | custom
+LLM_API_KEY
+LLM_BASE_URL          # only for custom
+LLM_MODEL             # overrides the provider default
 ```
 
 ## Not in scope

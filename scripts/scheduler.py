@@ -192,6 +192,39 @@ def _collect(onion: str, *, allow_external: bool = False) -> tuple[list[dict], l
     return result.documents, result.feedback, result.fetched
 
 
+def order_by_reliability(session, documents: list) -> list:
+    """Highest-reliability sources first.
+
+    `sources.reliability` has been stored since Phase 0 and read by nothing.
+    This is the one place it changes behaviour, and it changes only *order*:
+    every document still gets processed, so a completed tick writes exactly the
+    same rows whatever the order was. What it buys is that a tick cut short —
+    by a rate limit, a timeout, a container stopped mid-run — has spent its time
+    on the sources worth trusting rather than whichever the loader happened to
+    yield first.
+
+    It deliberately does not weight any score. Whether reliability *should*
+    weight evidence is a measured question and scripts/measure_reliability.py
+    answers it: on this corpus, no.
+    """
+    stored = {
+        row[0]: (row[1] if row[1] is not None else 0.5)
+        for row in session.execute(sql("SELECT url, reliability FROM sources"))
+    }
+
+    def weight(document) -> float:
+        source = getattr(document, "source", None) or {}
+        url = source.get("url")
+        if url in stored:
+            return float(stored[url])
+        declared = source.get("reliability")
+        return float(declared) if declared is not None else 0.5
+
+    # Stable within a reliability band, so two sources rated the same keep the
+    # loader's order and the corpus stays reproducible.
+    return sorted(documents, key=lambda d: -weight(d))
+
+
 def _ingest(session, source: str, input_path: Optional[Path],
             documents: Optional[list[dict]] = None
             ) -> tuple[int, int, int, int, list[int]]:
@@ -207,6 +240,8 @@ def _ingest(session, source: str, input_path: Optional[Path],
             if source == "live"
             else ingest.read_fixture_documents()
         )
+    documents = order_by_reliability(session, documents)
+
     before = {row[0] for row in session.execute(sql("SELECT id FROM personas"))}
 
     extracted, _dropped = ingest.run_extraction(documents)

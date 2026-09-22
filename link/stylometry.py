@@ -93,6 +93,8 @@ __all__ = [
     "mask_identifiers",
     "store",
     "store_vocabulary",
+    "toolchain",
+    "vocabulary_toolchain",
 ]
 
 #: Bump when any feature family changes shape or meaning. Cached vectors from a
@@ -108,6 +110,33 @@ FAMILY_WEIGHTS: dict[str, float] = {
 
 CHAR_NGRAM_RANGE = (3, 5)
 CHAR_MAX_FEATURES = 5000
+
+
+def toolchain() -> str:
+    """The libraries that do the fitting, as a comparable string.
+
+    `feature_version` fingerprints the *inputs*: same extractor version, same
+    masked corpus. That is enough to know two vectors saw the same text and not
+    enough to know the same code turned it into numbers. Measured on this
+    project: scikit-learn 1.6.0 and 1.6.1 fit vocabularies that disagree enough
+    to drop a persona's self-similarity from 1.000 to 0.620, while both stamp
+    the identical feature_version — so a vocabulary stored by one and vectors
+    stored by the other compare cleanly and mean nothing.
+
+    The platform is in the string for the same reason. Measured on this
+    project: scikit-learn 1.6.1 on Windows and the identical version on Linux
+    fit different vocabularies from byte-identical text, moving S by ~0.002 and
+    every stored vector hash. Neither is wrong; they are simply not comparable,
+    and the container is the reference because that is what CI and the demo run.
+
+    Recorded next to the fit and checked before it is reused.
+    """
+    import platform  # noqa: PLC0415
+
+    import sklearn  # noqa: PLC0415
+
+    return (f"scikit-learn=={sklearn.__version__} numpy=={np.__version__} "
+            f"{platform.system().lower()}")
 
 #: Closed-class English words. Frequencies of these track syntax rather than
 #: subject matter, which is the point: a vendor's market listings and their
@@ -284,6 +313,9 @@ class Vocabulary:
     feature_version: str
     terms: list[str]
     idf: np.ndarray
+    #: The scikit-learn/numpy build that produced it. Defaults to the running
+    #: one, so a freshly fitted vocabulary is always self-consistent.
+    toolchain: str = ""
 
     def __len__(self) -> int:
         return len(self.terms)
@@ -422,10 +454,11 @@ def load_or_build(
     that gained a persona has a different vocabulary and the old vectors are no
     longer comparable.
 
-    A third condition joins those: the fitted vocabulary must be stored too.
-    Vectors without it can be compared to each other and to nothing else, so a
-    database seeded before `writeprint_vocab` existed is a miss — the refit
-    produces byte-identical vectors and fills the gap.
+    A third condition joins those: the fitted vocabulary must be stored **and
+    usable by the running toolchain**. Vectors without a vocabulary can be
+    compared to each other and to nothing else, and a vocabulary fitted by a
+    different scikit-learn build is worse than none — it transforms cleanly and
+    means nothing. Either way the refit is the answer, and it is cheap.
     """
     if session is None:
         return build(texts, identifiers, min_chars=min_chars), False
@@ -521,6 +554,7 @@ def build(
         feature_version=version,
         terms=[str(t) for t in vectorizer.get_feature_names_out()],
         idf=np.asarray(vectorizer.idf_, dtype=np.float64),
+        toolchain=toolchain(),
     )
 
     return WriteprintSet(prints=prints, refused=refused, feature_version=version,
@@ -721,8 +755,19 @@ def store_vocabulary(session, vocabulary: Vocabulary) -> bool:
     row.terms = list(vocabulary.terms)
     row.idf = np.asarray(vocabulary.idf, dtype=np.float64).tobytes()
     row.n_features = len(vocabulary.terms)
+    row.toolchain = vocabulary.toolchain or toolchain()
     row.built_at = utcnow()
     return True
+
+
+def vocabulary_toolchain(session, feature_version: str) -> Optional[str]:
+    """What fitted the stored vocabulary, or None if there is no row.
+
+    Exists so a caller refused by `load_vocabulary` can say *why* — "fitted by
+    Linux, this process is Windows" is actionable, "not stored" is not.
+    """
+    row = session.get(VocabRow, feature_version)
+    return None if row is None else (row.toolchain or "")
 
 
 def load_vocabulary(session, feature_version: str) -> Optional[Vocabulary]:
@@ -744,7 +789,15 @@ def load_vocabulary(session, feature_version: str) -> Optional[Vocabulary]:
         # returning a vocabulary whose columns are off by one.
         return None
 
-    return Vocabulary(feature_version=row.feature_version, terms=terms, idf=idf)
+    stored = row.toolchain or ""
+    if stored and stored != toolchain():
+        # A vocabulary fitted by a different scikit-learn build. It will
+        # transform without complaint and produce numbers that look ordinary,
+        # which is exactly why this refuses instead of returning it.
+        return None
+
+    return Vocabulary(feature_version=row.feature_version, terms=terms,
+                      idf=idf, toolchain=stored or toolchain())
 
 
 def load(session, feature_version: str) -> dict[int, Writeprint]:

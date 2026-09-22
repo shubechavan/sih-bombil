@@ -257,9 +257,28 @@ def db():
     except Exception as exc:  # noqa: BLE001 - any connection failure is a skip
         pytest.skip(f"Postgres unavailable: {type(exc).__name__}: {exc}")
 
-    from db import session_scope  # noqa: PLC0415
+    from db import SessionLocal  # noqa: PLC0415
 
-    return session_scope
+    import contextlib  # noqa: PLC0415
+
+    @contextlib.contextmanager
+    def scoped():
+        """A session that always rolls back.
+
+        These cases write a vocabulary to check it round-trips. `session_scope`
+        commits, so they were quietly replacing the stored vocabulary with
+        whichever toolchain ran the suite — invisible on one machine, and on a
+        second one it leaves the vectors and the vocabulary fitted by different
+        builds, which is the exact failure the toolchain guard exists to catch.
+        """
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.rollback()
+            session.close()
+
+    return scoped
 
 
 def test_the_vocabulary_survives_the_database(built, db):
@@ -304,6 +323,48 @@ def test_a_vector_built_from_the_stored_vocabulary_is_the_same_vector(built, db)
         f"a vocabulary round-tripped through Postgres produces a different "
         f"vector (cosine {cosine:.6f})"
     )
+
+
+def test_a_vocabulary_from_a_different_toolchain_is_refused(db):
+    """The bug this guard exists for, reproduced.
+
+    scikit-learn 1.6.0 and 1.6.1 fit measurably different vocabularies from
+    identical text and both stamp the same feature_version, because that hashes
+    the corpus and not the code. Storing one and scoring against vectors from
+    the other dropped a persona's self-similarity from 1.000 to 0.620 — a number
+    that looks perfectly ordinary. Refusing is the only safe answer.
+    """
+    from db import WriteprintVocab  # noqa: PLC0415
+
+    version = "sty-1:toolchain-probe"
+    with db() as session:
+        session.merge(WriteprintVocab(
+            feature_version=version,
+            terms=["abc", "bcd"],
+            idf=np.asarray([1.0, 2.0], dtype=np.float64).tobytes(),
+            n_features=2,
+            toolchain="scikit-learn==0.0.1 numpy==0.0.1",
+        ))
+        session.flush()
+        loaded = stylometry_module.load_vocabulary(session, version)
+
+    assert loaded is None, (
+        "a vocabulary fitted by a different scikit-learn was handed back; it "
+        "would transform without complaint and mean nothing"
+    )
+
+
+def test_a_vocabulary_from_this_toolchain_is_accepted(db, built):
+    vocabulary = built["writeprints"].vocabulary
+    assert vocabulary.toolchain, "build() did not record the toolchain"
+    with db() as session:
+        stylometry_module.store_vocabulary(session, vocabulary)
+        session.flush()
+        loaded = stylometry_module.load_vocabulary(
+            session, vocabulary.feature_version
+        )
+    assert loaded is not None
+    assert loaded.toolchain == vocabulary.toolchain
 
 
 def test_load_vocabulary_ignores_other_versions(db):
@@ -453,6 +514,20 @@ def client():
         test_client.headers.update(
             {"Authorization": f"Bearer {login.json()['access_token']}"}
         )
+
+        # The stored vocabulary belongs to whichever toolchain last refit it,
+        # and scikit-learn fits a different one on Windows than on Linux from
+        # identical text. Running these against a foreign vocabulary would not
+        # fail loudly — /analyze refuses with a 503 — but it would test the
+        # refusal rather than the fidelity these cases exist for. Skip, and say
+        # which environment would run them. See CLAUDE.md, Local environment.
+        probe = test_client.post("/analyze", json={"text": "x" * 400})
+        if probe.status_code == 503 and "fitted by" in probe.json().get("detail", ""):
+            pytest.skip(
+                "the stored vocabulary was fitted by a different toolchain; "
+                "run these in the container, or refit locally with "
+                "`python -m link.resolve --source db`"
+            )
         yield test_client
 
 

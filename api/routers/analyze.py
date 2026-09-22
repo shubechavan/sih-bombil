@@ -158,12 +158,27 @@ def analyse(request: AnalyseRequest, session=Depends(get_session)) -> AnalyseRes
 
     vocabulary = stylometry_module.load_vocabulary(session, version)
     if vocabulary is None:
-        raise HTTPException(
-            status_code=503,
-            detail=f"the fitted vocabulary for {version} is not stored, so "
-                   f"pasted text cannot be projected into the same space — run "
-                   f"`python -m link.resolve --source db` to write it",
-        )
+        stored = stylometry_module.vocabulary_toolchain(session, version)
+        running = stylometry_module.toolchain()
+        if stored:
+            # The row exists and was refused. Say so plainly: a vocabulary
+            # fitted elsewhere would transform without complaint and produce a
+            # number that means nothing, which is worse than this 503.
+            detail = (
+                f"the stored vocabulary for {version} was fitted by "
+                f"[{stored}] and this process is [{running}]. Those fit "
+                f"measurably different vocabularies from the same text, so "
+                f"scoring against it would produce a plausible number with "
+                f"nothing behind it. Re-run `python -m link.resolve --source "
+                f"db` in the environment that will serve this API."
+            )
+        else:
+            detail = (
+                f"the fitted vocabulary for {version} is not stored, so pasted "
+                f"text cannot be projected into the same space — run "
+                f"`python -m link.resolve --source db` to write it"
+            )
+        raise HTTPException(status_code=503, detail=detail)
 
     weights = weights_for(DEFAULT_PRESET)
 

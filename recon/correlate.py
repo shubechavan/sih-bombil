@@ -324,6 +324,12 @@ class Correlation:
     score: float
     evidence: list = field(default_factory=list)
     provider: Optional[str] = None
+    #: Who owns the metal. The host name is a label an operator chose; the ASN
+    #: and its registered org are the company that can actually be approached,
+    #: which is what link/leads.py reports as the real-world entity.
+    clearnet_asn: Optional[str] = None
+    clearnet_org: Optional[str] = None
+    clearnet_country: Optional[str] = None
 
     @property
     def key(self) -> tuple[str, str, str]:
@@ -341,6 +347,9 @@ class Correlation:
             "score": min(max(self.score, 0.0), 1.0),
             "evidence": self.evidence,
             "provider": self.provider,
+            "clearnet_asn": self.clearnet_asn,
+            "clearnet_org": self.clearnet_org,
+            "clearnet_country": self.clearnet_country,
         }
 
 
@@ -349,6 +358,12 @@ def _match_one(finding: Fingerprint, observation: dict, host: str,
     """Every signal on which this onion and this clearnet host agree."""
     ip = observation.get("ip_str")
     port = observation.get("port")
+    # Recorded off the observation rather than looked up later: whoever answered
+    # on this IP at this moment is the fact, and a re-resolution months later
+    # may find a different tenant on the same address.
+    asn = observation.get("asn")
+    org = observation.get("org")
+    country = _dig(observation, "location", "country_code")
     out: list[Correlation] = []
 
     def add(match_type: str, detail: str, **extra) -> None:
@@ -358,6 +373,7 @@ def _match_one(finding: Fingerprint, observation: dict, host: str,
         out.append(Correlation(
             onion_url=finding.onion_url, clearnet_host=host, clearnet_ip=ip,
             clearnet_port=port, match_type=match_type,
+            clearnet_asn=asn, clearnet_org=org, clearnet_country=country,
             score=MATCH_WEIGHTS[match_type], evidence=evidence,
         ))
 

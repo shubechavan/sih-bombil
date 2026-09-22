@@ -19,3 +19,8 @@ obfus_hashes.db
 # carries a previous run's node ids.
 .pytest_cache/
 ui/tsconfig.tsbuildinfo
+
+# The local Python 3.11 environment. Required for running tests (see
+# CLAUDE.md) and emphatically not something to commit.
+.venv/
+venv/

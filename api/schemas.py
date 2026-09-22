@@ -39,6 +39,7 @@ __all__ = [
     "GraphNode",
     "GraphPayload",
     "Identifier",
+    "LeadEntry",
     "LinkSummary",
     "PersonaDetail",
     "PersonaSummary",
@@ -134,6 +135,11 @@ class PersonaSummary(BaseModel):
     handle_normalized: Optional[str] = None
     source_id: Optional[int] = None
     source_name: Optional[str] = None
+    #: The source's quality weight, 0..1, shown next to the persona rather than
+    #: folded into any score. Whether it should weight evidence is a measured
+    #: question — see scripts/measure_reliability.py for the answer on this
+    #: corpus, which is no.
+    source_reliability: Optional[float] = None
     category: Optional[str] = None
     post_count: int = 0
     #: Set when stylometry declined to build a writeprint for this persona.
@@ -187,6 +193,31 @@ class ActorSummary(BaseModel):
     handles: list[str] = Field(default_factory=list)
 
 
+class LeadEntry(BaseModel):
+    """One pointer at the world outside Tor.
+
+    A band and two sentences, never a number: there is no ground truth for
+    "which real person is this", so a 0..1 confidence here would have the shape
+    of a measurement and none of the substance. See link/leads.py.
+    """
+
+    kind: str = Field(description="email | jabber | jabber_server | telegram | "
+                                  "wallet | pgp_uid | clearnet_host")
+    value: str
+    band: str = Field(description="STRONG | MODERATE | WEAK")
+    why: str = Field(description="How it was found. Written for a human.")
+    caveat: str = Field(description="What it does not prove. Never empty.")
+    scope: str = Field(
+        default="actor",
+        description="'actor' — the actor published this. 'source' — "
+                    "infrastructure behind a site they post on, shared with "
+                    "every other vendor there.",
+    )
+    personas: list[int] = Field(default_factory=list)
+    url: Optional[str] = None
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
 class ActorDetail(ActorSummary):
     notes: Optional[str] = None
     personas: list[PersonaDetail] = Field(default_factory=list)
@@ -196,6 +227,10 @@ class ActorDetail(ActorSummary):
     trust_edges: list["TrustEdge"] = Field(default_factory=list)
     trust_note: str = ""
     timeline: list["TimelineBucket"] = Field(default_factory=list)
+    #: Pointers outside the dark web. Context for an investigator, with no
+    #: bearing on the attribution score — see link/leads.py.
+    leads: list[LeadEntry] = Field(default_factory=list)
+    leads_note: str = ""
 
 
 class TrustEdge(BaseModel):

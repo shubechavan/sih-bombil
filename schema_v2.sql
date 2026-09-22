@@ -139,6 +139,15 @@ CREATE TABLE IF NOT EXISTS writeprint_vocab (
     terms           JSONB,                 -- char n-grams; list index = column index
     idf             BYTEA,                 -- np.float64 tobytes, aligned with terms
     n_features      INTEGER,
+    -- The scikit-learn and numpy versions that did the fit. `feature_version`
+    -- hashes the corpus and this module's version, which is enough to know two
+    -- vectors saw the same *inputs* — and not enough to know they were produced
+    -- by the same *code*. Two interpreters with different scikit-learn builds
+    -- fit measurably different vocabularies from identical text, and without
+    -- this column they would both claim the same feature_version and /analyze
+    -- would score a paste against a vocabulary that never produced the stored
+    -- vectors. Recorded so a mismatch is caught rather than silently scored.
+    toolchain       TEXT,
     built_at        TIMESTAMP DEFAULT NOW()
 );
 
@@ -210,6 +219,14 @@ CREATE TABLE IF NOT EXISTS infra_correlations (
     score          FLOAT NOT NULL,
     evidence       JSONB,
     provider       TEXT,                   -- shodan | censys | fixtures
+    -- Who actually owns the metal. The host is a name; the ASN and the
+    -- registered org are the real-world entity an investigator can approach,
+    -- which is what the clearnet-leads panel reports. Recorded here rather
+    -- than re-derived, because it is a property of the observation that
+    -- produced the row and the observation may not be repeatable.
+    clearnet_asn     TEXT,
+    clearnet_org     TEXT,
+    clearnet_country TEXT,
     observed_at    TIMESTAMP DEFAULT NOW()
 );
 
@@ -373,9 +390,14 @@ ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS feature_version TEXT;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS refused_reason  TEXT;
 ALTER TABLE writeprints ADD COLUMN IF NOT EXISTS computed_at     TIMESTAMP DEFAULT NOW();
 
+ALTER TABLE infra_correlations ADD COLUMN IF NOT EXISTS clearnet_asn     TEXT;
+ALTER TABLE infra_correlations ADD COLUMN IF NOT EXISTS clearnet_org     TEXT;
+ALTER TABLE infra_correlations ADD COLUMN IF NOT EXISTS clearnet_country TEXT;
+
 ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS terms      JSONB;
 ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS idf        BYTEA;
 ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS n_features INTEGER;
+ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS toolchain  TEXT;
 ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS built_at   TIMESTAMP DEFAULT NOW();
 
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_a    INTEGER REFERENCES personas(id) ON DELETE CASCADE;
