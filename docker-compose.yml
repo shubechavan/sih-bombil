@@ -76,6 +76,12 @@ services:
       # host; inside the network the database is `db`, never localhost.
       PG_URL: postgresql://${PG_USER:-postgres}:${PG_PASSWORD:-darksentinel}@db:5432/${PG_DB:-darksentinel}
       TOR_SOCKS: socks5h://tor:9050
+      # Control port of the lab's tor daemon, for recon/descriptor.py's
+      # `--source live`. Only reachable when the lab profile is up; with the
+      # lab down, `--source fixtures` is the path and needs none of this.
+      TOR_CONTROL_HOST: ${TOR_CONTROL_HOST:-lab-tor}
+      TOR_CONTROL_PORT: ${TOR_CONTROL_PORT:-9051}
+      TOR_CONTROL_PASSWORD: ${TOR_CONTROL_PASSWORD:-darksentinel-lab-control}
       OPERATOR_ID: ${OPERATOR_ID:-unknown}
       # Signs the session tokens. The default is a demo value and says so;
       # changing it signs everyone out, which is the intended behaviour.
@@ -144,6 +150,12 @@ services:
     container_name: darksentinel-lab-tor
     profiles: ["lab"]
     restart: unless-stopped
+    # 9051 is the control port (see lab/torrc). Deliberately `expose` and not
+    # `ports`: the api container needs to reach it, the host does not, and a
+    # control port published on 0.0.0.0 hands that daemon to anyone who can
+    # reach the machine.
+    expose:
+      - "9051"
     volumes:
       # Keeps the onion address (and its private key) across restarts, so the
       # address written into notes before a demo is still the address on the

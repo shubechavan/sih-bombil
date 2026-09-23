@@ -1,1 +1,5 @@
 * text=auto eol=lf
+# Descriptors carry an Ed25519 signature over their text. Python normalises
+# line endings on read, so either form validates, but pin them to LF so the
+# checked-out bytes are identical on every platform and in CI.
+fixtures/descriptors/*.txt text eol=lf

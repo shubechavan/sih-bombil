@@ -7,6 +7,24 @@ SocksPort 0
 Log notice stdout
 DataDirectory /var/lib/tor
 
+# ControlPort, so recon/descriptor.py can ask this daemon to fetch a v3
+# descriptor out of the hidden service directory (HSFETCH). It is reachable
+# only on the compose network — docker-compose.yml deliberately does not
+# publish 9051 to the host, because anything that can speak to a control port
+# owns that tor daemon completely.
+#
+# The password is "darksentinel-lab-control" and this hash is checked in on
+# purpose: it authenticates a throwaway daemon in a lab profile that serves
+# synthetic data, and a demo that needs a secret out of band is a demo that
+# fails on stage. Do not copy this pattern onto a daemon that carries traffic
+# you care about.
+# 0.0.0.0 because the api container has to reach it across the compose
+# network; tor binds the control port to localhost otherwise. This is only
+# acceptable because docker-compose.yml `expose`s 9051 rather than publishing
+# it, so it is reachable from sibling containers and from nothing else.
+ControlPort 0.0.0.0:9051
+HashedControlPassword 16:07DD0EB90AE0CC9660091566C55F54428BC11ED82255D7F13C55998F19
+
 HiddenServiceDir /var/lib/tor/lab_hs
 HiddenServiceVersion 3
 HiddenServicePort 80 lab:8080
