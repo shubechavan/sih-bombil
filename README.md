@@ -1,10 +1,10 @@
 # Dark Sentinel v2 — Dark Web Threat Actor Attribution Platform
 
 [![CI](https://github.com/shubechavan/sih-bombil/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/pytest-388%20passed-brightgreen.svg)](tests/)
-[![UI checks](https://img.shields.io/badge/browser%20checks-49%20passed-brightgreen.svg)](ui/scripts/verify-pages.mjs)
+[![Tests](https://img.shields.io/badge/pytest-536%20passed-brightgreen.svg)](tests/)
+[![UI checks](https://img.shields.io/badge/browser%20checks-63%20passed-brightgreen.svg)](ui/scripts/verify-pages.mjs)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-blue.svg)](requirements.txt)
-[![Status](https://img.shields.io/badge/status-Phases%200--7%20complete-brightgreen.svg)](docs/BUILD_PLAN.md)
+[![Status](https://img.shields.io/badge/status-Phases%200--8%20complete-brightgreen.svg)](docs/BUILD_PLAN.md)
 [![Use](https://img.shields.io/badge/use-Authorized%20Investigative%20Only-red.svg)](#legal--operational-disclaimer)
 
 > Operators are not caught because Tor's cryptography fails. They are caught because the same
@@ -35,6 +35,8 @@ Commands are given for each claim. Where something is not built, it says so.
 | 4 | FastAPI endpoints, Next.js attribution console | **Complete** |
 | 5 | Autonomous mode, PDF case report, compose stack | **Complete** |
 | 6 | Lab hidden service, collectors, buyer feedback | **Complete** |
+| 7 | `/analyze`, auth and audit, CI, standalone images, a11y | **Complete** |
+| 8 | Clearnet leads, entity graph, descriptors, profiles, reliability | **Complete** |
 
 Phase 6 closed the gap that mattered most: until it, nothing in this repo had ever crawled anything.
 There is now a lab hidden service — a fake marketplace and forum serving the fixture corpus, published
@@ -57,7 +59,7 @@ for line, except the line naming which source it read. 74 seconds for the crawl 
 The lab is also the first thing `recon/` has ever pointed at for real, and doing so found two bugs
 that only a live certificate could surface — see *Passive reconnaissance* below.
 
-`ui/` carries the five attribution pages and nothing else. v1's alerts, threats, analytics, PII,
+`ui/` carries the six attribution pages and nothing else. v1's alerts, threats, analytics, PII,
 pipeline and system pages — and the eight API routes that fed them — were deleted rather than left
 lying around; the console's service strip now reports what `GET /health` actually knows (API,
 Postgres, whether the pipeline has been run) instead of v1's n8n and RoBERTa, which never resolved.
@@ -259,6 +261,126 @@ python scripts/evaluate.py --transitive
 
 ---
 
+## Pointing outward: clearnet leads
+
+The problem statement asks to *link them to suspect real-world entities*. Everything else in this
+repo links personas to each other; `link/leads.py` is the part that points outward — at a mailbox,
+an XMPP server, a wallet with a block-explorer link, a hosting provider. Things an investigator can
+serve process on.
+
+```
+GET /actors/1  →  10 leads   3 STRONG · 5 MODERATE · 2 WEAK
+                  5 published by the actor · 5 infrastructure behind their markets
+
+  STRONG    jabber    dreadpirate@jabber.calyxinstitute.net
+  MODERATE  wallet    bc1q5c8pyjdf4737dwd7tzklxu8tepcc0ytxrj7r3r  → mempool.space
+```
+
+**There is no decimal on any of them, deliberately.** `fixtures/ground_truth.json` records which
+personas share an actor. It records nothing about which human is behind them, so there is nothing to
+calibrate a 0..1 confidence against, and a number here would have the shape of a measurement and
+none of the substance — sitting next to attribution scores that *are* measured. Bands and two
+sentences instead: how it was found, and what it does not prove.
+
+Most of the module is refusals:
+
+- `protonmail.com` caps at MODERATE — thousands of people have one, the mailbox is a lead, the
+  domain is hosting trivia.
+- `mail2tor.com` is marked WEAK and says why: it is itself a hidden service, so an address there is
+  a step *further in*, not a step out.
+- Monero gets no explorer link. BTC, ETH and LTC have a public trail; implying XMR has one would
+  invent a lookup that does not exist.
+- Correlated clearnet hosts are scoped to the **source**, not the actor, because every vendor on a
+  marketplace shares its hosting.
+
+Nothing here feeds the attribution score, and `tests/test_leads.py` asserts it by parsing the
+module's imports rather than grepping its text.
+
+## The same graph, drawn around identifiers
+
+`GET /graph` draws personas joined by attribution. `GET /graph/entity` draws what they published:
+the identifier becomes the node, personas hang off it, and anything touched by more than one persona
+is a hub.
+
+```
+55 nodes, 46 edges, 11 hubs
+
+  handle   dreadpirate      personas 1, 9      ← Dr3adPirat3 + Dread_P1rate
+  pgp      a4f57a…1edc302f  personas 1, 16
+  wallet   1PkWTV…u8g4yNzp  personas 2, 17
+  jabber   dreadp…tute.net  personas 1, 9
+```
+
+Every hub is a pair the evaluation already reports. The view computes nothing new — it moves
+evidence out of an edge payload and into a shape you can see. Edges here carry no score at all; an
+edge means "this persona published this value", which is an observation.
+
+A separate endpoint rather than a mode on `/graph`, because the two disagree about what a node is:
+`GraphNode.id` is an integer persona id, and an entity node needs a string id and a kind. The
+persona view is byte-identical to what it was, verified across all four of its parameter
+combinations.
+
+## Behavioural profiles, and which kind you are reading
+
+`narrative/` writes a short profile per actor from features the engine already computed — posting
+hours, categories, trade vocabulary, orthographic habits out of `writeprints.features`, and the
+migration timeline.
+
+```
+Rule-based profile — generated from stored features, no AI
+
+This actor is 3 handles — Dr3adPirat3, Dread_P1rate, and BlackSailsRX — across 3 sources,
+active from 2025-09 to 2026-08. In order of first appearance: Dr3adPirat3 on market_alpha…
+Posting concentrates at 22:00–01:59 and 03:00 UTC across 32 posts. Hours are recorded as
+published by the sources and are not evidence of a timezone.
+```
+
+Three properties matter more than the model:
+
+**It cannot move a number.** No import path from `narrative/` reaches `score/`, asserted by parsing
+imports. If the model hallucinates, every attribution figure is what it was.
+
+**It says which it is.** `kind` is `ai` or `rule-based`, stored in the column, constrained in SQL,
+and read by the API, the console and the PDF. A template presented as AI output would be invisible
+to a reader, so it is made impossible rather than discouraged.
+
+**It works offline.** Read paths never call out. With `LLM_PROVIDER` and `LLM_API_KEY` set,
+`scripts/generate_profiles.py --llm` writes and caches AI profiles; without them the rule-based path
+returns one anyway, labelled as one.
+
+No raw post text leaves the box. `narrative/features.py` collects only derived values, and
+`narrative/prompt.py` runs every string through the GLiNER redaction path regardless — the first
+guarantee is a property of what was selected and weakens the moment somebody adds a field; the
+second is a property of what is sent.
+
+Two things measured against the real endpoint rather than assumed: `gemini-3.6-flash` spent 288 of
+375 tokens on internal reasoning and returned `MAX_TOKENS` with eight visible tokens, so a truncated
+fragment is treated as a failure and falls back; and `/v1beta/models` advertises models that 404 on
+use, so `LLM_MODEL` is never validated against that list.
+
+## What an onion descriptor does and does not say
+
+`recon/descriptor.py` fetches a v3 descriptor over the Tor control port and decrypts it. It is more
+passive than the rest of `recon/`: it never contacts the service at all, only the public directory
+the service uploaded to.
+
+It finds whether the operator runs a **single onion service** (location anonymity deliberately
+turned off), whether client authorisation is configured, and whether `pow-params` is present
+(Tor ≥ 0.4.8, normally switched on under denial of service).
+
+**It does not contain the service's IP address**, and `docs/DESCRIPTORS.md` leads with that. The
+trap is that descriptors *do* contain IP addresses — belonging to introduction point relays the
+service picked out of the public consensus. The field is named `relay_address`, the CLI prints a
+disclaimer under every report, and a test asserts no field named `service_ip` or `ip_address`
+exists.
+
+Also documented there: no Tor version beyond an inferred floor, no clock skew (v3 revision counters
+are order-preserving-encrypted precisely so they cannot be read as timestamps), nothing for v2, and
+no enumeration without the address.
+
+One library note worth repeating: `stem`'s `from_str` defaults to `validate=False`, and a corrupt
+descriptor parses into an object whose fields look real. This code passes `validate=True`.
+
 ## Passive reconnaissance
 
 Six GETs of conventional, publicly-served paths — `/`, `/favicon.ico`, `/robots.txt`,
@@ -384,11 +506,37 @@ So trust edges are drawn on the graph dashed and grey, listed on the actor profi
 that states the number, carry `affects_score: false` on every API row, and contribute nothing to A.
 `python -m link.trust --measure` re-runs the whole argument against the live database.
 
+### Source reliability is the same story, and got the same answer
+
+`sources.reliability` had been in the schema since Phase 0, read by nothing. The obvious move is to
+fold it into the score — evidence from a source you trust less should count for less. Plausible, so
+`scripts/measure_reliability.py` measured it across three ways of combining a pair's two sources:
+
+| scheme | ROC-AUC | margin |
+|---|---|---|
+| baseline (no weighting) | 1.0000 | **+0.071** |
+| weighted by min | 1.0000 | +0.018 |
+| weighted by mean | 1.0000 | +0.032 |
+| weighted by geometric | 1.0000 | +0.032 |
+
+Ranking does not move at all, and the margin gets **worse**. That is what the corpus predicts rather
+than a surprise: three sources spanning 0.61–0.72 scale every pair by nearly the same factor, and
+multiplying by a number below 1 drags true positives toward the band floors while the negatives,
+already low, have less room to fall.
+
+So reliability is displayed on the actor profile, and it orders which sources the scheduler visits
+first — `market_alpha` (0.72), `market_gamma` (0.68), `forum_beta` (0.61). It weights nothing, and
+should not until a corpus exists with enough spread to measure it on.
+
+(The margin figures above are over all 190 pairs, which is stricter than the +0.508 quoted
+elsewhere: that one is measured among pairs that reached a band, this one includes the two positives
+pairwise scoring cannot reach at all. Both are honest; they answer different questions.)
+
 ---
 
 ## Quickstart
 
-### The whole stack, cold to all five pages
+### The whole stack, cold to all six pages
 
 Timed on the machine this was built on, with images already built. First run
 adds the build.
@@ -572,7 +720,7 @@ docker-compose.yml postgres + tor + api + ui, plus `seed` and `lab` profiles
 
 ## Test suite
 
-`python -m pytest -q` → **388 passed**, plus 49 browser checks via
+`python -m pytest -q` → **536 passed** (10 skipped), plus 63 browser checks via
 `node ui/scripts/verify-pages.mjs`.
 
 | module | covers |
