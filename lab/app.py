@@ -44,6 +44,8 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
+import re
 import sys
 import threading
 from datetime import datetime, timedelta, timezone
@@ -69,6 +71,27 @@ TLS_SERIAL = 0x0F3A9C1D77B54E2A
 # ─────────────────────────────────────────────────────────────────────────────
 # Corpus
 # ─────────────────────────────────────────────────────────────────────────────
+
+#: Shape check only — 56 base32 characters and the suffix. The v3 checksum is
+#: deliberately *not* verified here: this container is the target, not the
+#: analyser, and recon/onion_location.py dropping a malformed advertisement is
+#: a behaviour worth being able to demonstrate rather than prevent.
+_ONION_SHAPE = re.compile(r"^[a-z2-7]{56}\.onion$")
+
+
+def onion_location_value() -> Optional[str]:
+    """The onion address this lab advertises, from `LAB_ONION_ADDRESS`.
+
+    Unset means no header, which is the default: the lab is useful without an
+    onion at all, and inventing an address would make the detector find
+    something that does not exist.
+
+        docker compose exec lab-tor cat /var/lib/tor/lab_hs/hostname
+        LAB_ONION_ADDRESS=<that> docker compose up -d lab
+    """
+    value = (os.environ.get("LAB_ONION_ADDRESS") or "").strip().lower()
+    return value if _ONION_SHAPE.match(value) else None
+
 
 def _read(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -247,6 +270,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Powered-By", "PHP/7.4.33")
         self.send_header("ETag", 'W/"5f2a1c-1b4e"')
         self.send_header("X-Lab-Target", "synthetic; not a real service")
+        # Onion-Location: the site declaring its own onion address, which is
+        # what recon/onion_location.py reads. Suppressed when the request
+        # already arrived over the onion, because advertising the onion to a
+        # visitor who is on it is what the spec tells operators not to do.
+        #
+        # The address comes from the environment rather than the lab-tor
+        # volume: that volume holds the service's private key, and mounting a
+        # key directory into a web server to read one public string models
+        # something nobody should copy.
+        onion = onion_location_value()
+        if onion and not self.headers.get("Host", "").lower().endswith(".onion"):
+            self.send_header("Onion-Location", f"http://{onion}/")
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
