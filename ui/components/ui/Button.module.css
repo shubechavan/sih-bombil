@@ -41,7 +41,7 @@
 
 .secondary {
 	background: color-mix(in srgb, var(--ds-glass) 75%, #ffffff 25%);
-	color: #dbeafe;
+	color: var(--ds-accent-ink);
 	border-color: var(--ds-glass-border);
 }
 .secondary:hover {

@@ -14,11 +14,13 @@
 	--ds-severity-high: #f59e0b;
 	--ds-severity-medium: #f97316;
 	--ds-severity-low: #38bdf8;
+	--ds-severity-success: #4ade80;
 
 	--ds-critical: var(--ds-severity-critical);
 	--ds-high: var(--ds-severity-high);
 	--ds-medium: var(--ds-severity-medium);
 	--ds-low: var(--ds-severity-low);
+	--ds-success: var(--ds-severity-success);
 
 	--ds-critical-bg: rgba(251, 113, 133, 0.14);
 	--ds-critical-border: rgba(251, 113, 133, 0.34);
@@ -28,6 +30,8 @@
 	--ds-medium-border: rgba(249, 115, 22, 0.3);
 	--ds-low-bg: rgba(56, 189, 248, 0.12);
 	--ds-low-border: rgba(56, 189, 248, 0.3);
+	--ds-success-bg: rgba(74, 222, 128, 0.14);
+	--ds-success-border: rgba(74, 222, 128, 0.34);
 
 	/* Accent */
 	--ds-accent: #7dd3fc;
@@ -118,6 +122,19 @@
 	--ds-z-modal: 400;
 	--ds-z-toast: 500;
 	--ds-z-tooltip: 550;
+
+	/* Body gradient stops — split out so the light theme below can replace the
+	   backdrop without touching styles/globals.css. */
+	--ds-bg-glow-1: rgba(96, 165, 250, 0.18);
+	--ds-bg-glow-2: rgba(125, 211, 252, 0.12);
+	--ds-bg-base-1: #050914;
+	--ds-bg-base-2: #0b1224;
+	--ds-bg-base-3: #111b34;
+
+	/* A few spots (nav active pill, logo, secondary button) sit on an
+	   accent-tinted translucent surface rather than a plain one, and need
+	   text that flips harder between themes than --ds-text-primary does. */
+	--ds-accent-ink: #dbeafe;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -126,4 +143,76 @@
 		--ds-duration-normal: 0ms;
 		--ds-duration-slow: 0ms;
 	}
+}
+
+/*
+ * Light theme. Same variable names, so every component that already reads a
+ * --ds-* token repaints for free — only the handful of places that used a
+ * hardcoded hex instead of a token needed their own fix (see CommandBar,
+ * NavRail and Button module CSS). Shades below are chosen at ≥600-weight
+ * saturation so text colours clear WCAG AA on the light surfaces they sit on;
+ * this hasn't been run through an automated contrast checker the way the
+ * dark tokens above were, so re-verify before this ships past a demo.
+ */
+:root[data-theme="light"] {
+	color-scheme: light;
+
+	--ds-void: #f4f6fb;
+	--ds-surface-0: #ffffff;
+	--ds-surface-1: #f8fafc;
+	--ds-surface-2: #eef2f8;
+	--ds-surface-3: #dde5f0;
+	--ds-glass: rgba(255, 255, 255, 0.68);
+	--ds-glass-heavy: rgba(255, 255, 255, 0.88);
+	--ds-glass-border: rgba(15, 23, 42, 0.12);
+
+	--ds-severity-critical: #dc2626;
+	--ds-severity-high: #d97706;
+	--ds-severity-medium: #ea580c;
+	--ds-severity-low: #0284c7;
+	--ds-severity-success: #16a34a;
+
+	--ds-critical-bg: rgba(220, 38, 38, 0.1);
+	--ds-critical-border: rgba(220, 38, 38, 0.32);
+	--ds-high-bg: rgba(217, 119, 6, 0.1);
+	--ds-high-border: rgba(217, 119, 6, 0.3);
+	--ds-medium-bg: rgba(234, 88, 12, 0.1);
+	--ds-medium-border: rgba(234, 88, 12, 0.3);
+	--ds-low-bg: rgba(2, 132, 199, 0.1);
+	--ds-low-border: rgba(2, 132, 199, 0.3);
+	--ds-success-bg: rgba(22, 163, 74, 0.1);
+	--ds-success-border: rgba(22, 163, 74, 0.32);
+
+	--ds-accent: #0369a1;
+	--ds-accent-dim: #0284c7;
+	--ds-accent-bg: rgba(3, 105, 161, 0.1);
+	--ds-accent-border: rgba(3, 105, 161, 0.3);
+	--ds-accent-glow: 0 0 20px rgba(3, 105, 161, 0.16);
+	--ds-info: #2563eb;
+	--ds-info-bg: rgba(37, 99, 235, 0.1);
+
+	--ds-text-primary: #0b1220;
+	--ds-text-secondary: #33415a;
+	--ds-text-tertiary: #47536b;
+	--ds-text-muted: #57647c;
+	--ds-text-inverse: #f8fafc;
+
+	--ds-border: rgba(15, 23, 42, 0.14);
+	--ds-border-hover: rgba(3, 105, 161, 0.38);
+	--ds-border-active: rgba(3, 105, 161, 0.55);
+	--ds-border-subtle: rgba(15, 23, 42, 0.08);
+
+	--ds-shadow-sm: 0 4px 16px rgba(15, 23, 42, 0.1);
+	--ds-shadow-md: 0 12px 36px rgba(15, 23, 42, 0.12);
+	--ds-shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.16);
+	--ds-shadow-glow-accent: 0 0 24px rgba(3, 105, 161, 0.18);
+	--ds-shadow-glow-critical: 0 0 22px rgba(220, 38, 38, 0.16);
+
+	--ds-bg-glow-1: rgba(59, 130, 246, 0.1);
+	--ds-bg-glow-2: rgba(14, 165, 233, 0.08);
+	--ds-bg-base-1: #f8fafc;
+	--ds-bg-base-2: #eef2f8;
+	--ds-bg-base-3: #e2e8f0;
+
+	--ds-accent-ink: #0c4a6e;
 }
