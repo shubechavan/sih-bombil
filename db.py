@@ -97,6 +97,7 @@ REQUIRED_TABLES: tuple[str, ...] = (
     "sources", "actors", "personas", "identifiers", "persona_identifiers",
     "posts", "writeprints", "writeprint_vocab", "links", "infra_findings",
     "infra_correlations", "feedback", "scans", "users", "audit_log",
+    "actor_profiles",
 )
 
 
@@ -433,6 +434,35 @@ class Writeprint(Base):
     def __repr__(self) -> str:
         state = "REFUSED" if self.refused else f"chars={self.char_count}"
         return f"<Writeprint p={self.persona_id} {state}>"
+
+
+class ActorProfile(Base):
+    """The behavioural profile shown on an actor page. A cache, not a source.
+
+    `kind` is the field that matters. A rule-based profile and an AI-written
+    one are both legitimate output and both read like prose, so which one a
+    reader is looking at cannot be left to a default in a template: it is
+    stored, constrained in SQL, and read by the UI and the PDF alike.
+
+    `fingerprint` hashes the derived features the text was written from. A
+    profile whose fingerprint no longer matches describes a corpus that has
+    changed, and is ignored rather than shown — it would read exactly like a
+    current one.
+
+    Nothing here feeds the attribution score.
+    """
+
+    __tablename__ = "actor_profiles"
+
+    actor_id: Mapped[int] = mapped_column(
+        ForeignKey("actors.id", ondelete="CASCADE"), primary_key=True
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[Optional[str]] = mapped_column(Text)
+    provider: Mapped[Optional[str]] = mapped_column(Text)
+    fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utcnow)
 
 
 class WriteprintVocab(Base):

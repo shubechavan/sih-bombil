@@ -231,6 +231,26 @@ class ActorDetail(ActorSummary):
     #: bearing on the attribution score — see link/leads.py.
     leads: list[LeadEntry] = Field(default_factory=list)
     leads_note: str = ""
+    #: A short behavioural profile. Optional, and never an input to the score.
+    profile: Optional["ActorProfileEntry"] = None
+
+
+class ActorProfileEntry(BaseModel):
+    """A behavioural profile, and which kind it is.
+
+    `kind` and `label` both ride on the wire rather than being reconstructed by
+    the client. A renderer that has to decide for itself whether prose came
+    from a model will eventually decide wrong, and the failure — a template
+    shown as AI output — is invisible to the person reading it.
+    """
+
+    text: str
+    kind: str                               #: ai | rule-based
+    label: str
+    model: Optional[str] = None
+    provider: Optional[str] = None
+    #: Always false. Present so a client cannot wonder.
+    affects_score: bool = False
 
 
 class TrustEdge(BaseModel):

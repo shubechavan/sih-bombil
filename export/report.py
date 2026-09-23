@@ -402,6 +402,7 @@ def render_actor(actor: dict, s, *, page_width: float) -> list:
         flow.append(KeepTogether(block))
         flow.append(Spacer(1, 3 * mm))
 
+    flow.extend(_profile_section(actor, s))
     flow.extend(_leads_section(actor, s, page_width=page_width))
 
     return flow
@@ -411,6 +412,39 @@ def render_actor(actor: dict, s, *, page_width: float) -> list:
 #: band is a measured score and a lead band is a judgement, and giving them the
 #: same palette would invite a reader to treat them as the same kind of claim.
 LEAD_HEX = {"STRONG": "#8a4b12", "MODERATE": "#5b6472", "WEAK": "#7a8290"}
+
+
+def _profile_section(actor: dict, s) -> list:
+    """The behavioural profile, with its provenance attached to it.
+
+    The label is printed immediately under the heading and above the text, not
+    as a footnote. A reader who skims the paragraph and skips a footnote has
+    been misled about where it came from, and in a court-style report that is
+    the part that matters most.
+    """
+    profile = actor.get("profile") or {}
+    text = (profile.get("text") or "").strip()
+    if not text:
+        return []
+
+    label = profile.get("label") or ""
+    if profile.get("kind") == "ai" and profile.get("model"):
+        label = f"{label} ({profile['model']})"
+
+    return [
+        Spacer(1, 2 * mm),
+        Paragraph("Behavioural profile", s["h2"]),
+        Paragraph(f"<i>{_esc(label)}</i>", s["small"]),
+        Spacer(1, 1.5 * mm),
+        Paragraph(_esc(text), s["body"]),
+        Spacer(1, 1.5 * mm),
+        Paragraph(
+            "This profile is a description of stored features. It is not "
+            "evidence, it did not contribute to any confidence score, and it "
+            "must not be quoted as a finding.",
+            s["small"],
+        ),
+    ]
 
 
 def _leads_section(actor: dict, s, *, page_width: float) -> list:

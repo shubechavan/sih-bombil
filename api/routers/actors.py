@@ -30,9 +30,11 @@ from api.queries import (  # noqa: E402
     trust_edges_for,
 )
 from link.leads import leads_for_personas  # noqa: E402
+from narrative import profile_for  # noqa: E402
 from api.schemas import (  # noqa: E402
     ActorDetail,
     ActorSummary,
+    ActorProfileEntry,
     LeadEntry,
     PersonaDetail,
     TimelineBucket,
@@ -217,6 +219,12 @@ def collect_actor_detail(session, actor_id: int, *,
     trust = trust_edges_for(session, persona_ids)
     leads = leads_for_personas(session, persona_ids)
 
+    # allow_llm is False on every read path. A page load must not wait on
+    # somebody else's API, and a demo must not depend on the venue's wifi:
+    # this returns whatever scripts/generate_profiles.py cached, or the
+    # rule-based profile, which is deterministic and costs microseconds.
+    profile = profile_for(session, actor_id, allow_llm=False)
+
     return ActorDetail(
         **base.model_dump(),
         notes=row.notes,
@@ -238,6 +246,13 @@ def collect_actor_detail(session, actor_id: int, *,
             for lead in leads
         ],
         leads_note=LEADS_NOTE if leads else "",
+        profile=(
+            ActorProfileEntry(
+                text=profile.text, kind=profile.kind, label=profile.label,
+                model=profile.model, provider=profile.provider,
+            )
+            if profile is not None else None
+        ),
     )
 
 

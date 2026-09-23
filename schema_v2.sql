@@ -151,6 +151,30 @@ CREATE TABLE IF NOT EXISTS writeprint_vocab (
     built_at        TIMESTAMP DEFAULT NOW()
 );
 
+-- --- actor_profiles: the behavioural profile shown on an actor page ---------
+--
+-- A cache, not a source of truth. `fingerprint` hashes the derived features
+-- the text was written from, so a profile describing a corpus that has since
+-- changed is ignored rather than shown — a stale profile is worse than none,
+-- because it reads exactly like a current one.
+--
+-- `kind` is the reason this table exists. A rule-based profile and an
+-- AI-written one are both legitimate output, and telling them apart must not
+-- depend on a default somewhere in the UI. It is stored, constrained, and read
+-- by every renderer.
+--
+-- Nothing in this table feeds the attribution score. It is prose beside the
+-- evidence, never an input to it.
+CREATE TABLE IF NOT EXISTS actor_profiles (
+    actor_id     INTEGER PRIMARY KEY REFERENCES actors(id) ON DELETE CASCADE,
+    text         TEXT NOT NULL,
+    kind         TEXT NOT NULL,            -- ai | rule-based
+    model        TEXT,                     -- null for rule-based
+    provider     TEXT,
+    fingerprint  TEXT NOT NULL,            -- nar-1:<sha256[:12]> of the features
+    generated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- --- links: persona to persona ----------------------------------------------
 CREATE TABLE IF NOT EXISTS links (
     id            SERIAL PRIMARY KEY,
@@ -400,6 +424,19 @@ ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS n_features INTEGER;
 ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS toolchain  TEXT;
 ALTER TABLE writeprint_vocab ADD COLUMN IF NOT EXISTS built_at   TIMESTAMP DEFAULT NOW();
 
+CREATE TABLE IF NOT EXISTS actor_profiles (
+    actor_id     INTEGER PRIMARY KEY REFERENCES actors(id) ON DELETE CASCADE,
+    text         TEXT NOT NULL,
+    kind         TEXT NOT NULL,
+    model        TEXT,
+    provider     TEXT,
+    fingerprint  TEXT NOT NULL,
+    generated_at TIMESTAMP DEFAULT NOW()
+);
+ALTER TABLE actor_profiles ADD COLUMN IF NOT EXISTS model        TEXT;
+ALTER TABLE actor_profiles ADD COLUMN IF NOT EXISTS provider     TEXT;
+ALTER TABLE actor_profiles ADD COLUMN IF NOT EXISTS generated_at TIMESTAMP DEFAULT NOW();
+
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_a    INTEGER REFERENCES personas(id) ON DELETE CASCADE;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS persona_b    INTEGER REFERENCES personas(id) ON DELETE CASCADE;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS score        FLOAT;
@@ -574,6 +611,18 @@ BEGIN
                      AND conrelid = 'users'::regclass) THEN
         ALTER TABLE users ADD CONSTRAINT ck_users_role CHECK (
             role IN ('analyst', 'admin')
+        );
+    END IF;
+
+    -- A profile is either written by a model or generated from a template.
+    -- There is no third state and no default: the renderers read this column
+    -- to decide the label, and an unconstrained value would let a template be
+    -- shown as AI output, which is the one failure this feature must not have.
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint
+                   WHERE conname = 'ck_actor_profiles_kind'
+                     AND conrelid = 'actor_profiles'::regclass) THEN
+        ALTER TABLE actor_profiles ADD CONSTRAINT ck_actor_profiles_kind CHECK (
+            kind IN ('ai', 'rule-based')
         );
     END IF;
 
