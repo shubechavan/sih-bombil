@@ -223,6 +223,70 @@ try {
 		has(actorTrust, "not part of this actor") || has(actorTrust, "relationship context"),
 	);
 
+	// Phase 8. Each of these is a claim the page makes about provenance, and
+	// every one of them fails silently: a lead without its caveat, or a
+	// template labelled as AI, looks exactly like the correct version.
+	console.log("\nclearnet leads");
+	const leads = await textOf(page, `${BASE}/actors/1`, "clearnet leads");
+	check("the leads panel renders", has(leads, "clearnet leads"));
+	check(
+		"leads are worded as leads, not findings",
+		has(leads, "investigative leads") || has(leads, "never conclusions"),
+	);
+	check(
+		"actor-published leads are separated from site infrastructure",
+		has(leads, "published by this actor"),
+	);
+	const bands = await page
+		.locator("[data-band='STRONG'], [data-band='MODERATE'], [data-band='WEAK']")
+		.count();
+	check("each lead carries a qualitative band", bands > 0, `${bands} banded leads`);
+
+	console.log("\nbehavioural profile");
+	const profilePanel = await textOf(page, `${BASE}/actors/1`, "behavioural profile");
+	check("the profile panel renders", has(profilePanel, "behavioural profile"));
+	// The label is the whole feature. A profile that does not say which it is
+	// is indistinguishable from one that lies about it.
+	check(
+		"the profile says which kind it is",
+		has(profilePanel, "ai-generated summary") || has(profilePanel, "rule-based profile"),
+	);
+	check(
+		"a rule-based profile does not claim to be AI",
+		!has(profilePanel, "rule-based profile") || !has(profilePanel, "ai-generated summary"),
+	);
+	check(
+		"and the profile is marked as not evidence",
+		has(profilePanel, "not evidence") || has(profilePanel, "not part of any score"),
+	);
+	check("source reliability is shown on the persona", has(profilePanel, "source reliability"));
+
+	console.log("\nthe entity graph");
+	await page.goto(`${BASE}/graph`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+	await page.waitForTimeout(600);
+	const viewToggle = page.locator("button", { hasText: "Identifiers" }).first();
+	check("the graph offers an identifier view", (await viewToggle.count()) > 0);
+	await viewToggle.click();
+	await page.waitForTimeout(1500);
+	const entity = (await page.innerText("body")).toLowerCase();
+	check(
+		"hubs are counted on screen",
+		has(entity, "shared by more than one persona"),
+		"the hub count is the point of the view",
+	);
+	const entityNodes = await page.locator('svg[role="img"] g[role="button"]').count();
+	check("entity nodes render", entityNodes > 0, `${entityNodes} nodes`);
+	check(
+		"the entity view says it carries no score",
+		has(entity, "no score") || has(entity, "not scored"),
+	);
+	// Back to personas: the default view must survive the round trip, because
+	// /graph is the page the demo opens on.
+	await page.locator("button", { hasText: "Personas" }).first().click();
+	await page.waitForTimeout(1000);
+	const back = (await page.innerText("body")).toLowerCase();
+	check("switching back restores the persona view", has(back, "confirmed"));
+
 	console.log("\ntimeline");
 	const timeline = await textOf(page, `${BASE}/timeline`, "busiest bucket");
 	check("chart renders", (await page.locator("svg").count()) > 0);

@@ -3,21 +3,34 @@
 import {
 	BandPill,
 	ComponentBreakdown,
+	EntityGraph,
 	EvidenceList,
 	ForceGraph,
 	RefusalNotice,
 } from "@/components/attribution";
 import { TacticalPanel } from "@/components/tactical";
-import { type GraphEdge, type GraphPayload, api } from "@/lib/attribution";
+import {
+	type EntityGraphPayload,
+	type EntityNode,
+	type GraphEdge,
+	type GraphPayload,
+	api,
+} from "@/lib/attribution";
 import { Share2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "./graph.module.css";
 
+type View = "persona" | "entity";
+
 export default function GraphPage() {
 	const [payload, setPayload] = useState<GraphPayload | null>(null);
+	const [entity, setEntity] = useState<EntityGraphPayload | null>(null);
+	const [view, setView] = useState<View>("persona");
 	const [minScore, setMinScore] = useState(0.45);
 	const [selected, setSelected] = useState<GraphEdge | null>(null);
+	const [selectedEntity, setSelectedEntity] = useState<EntityNode | null>(null);
+	const [sharedOnly, setSharedOnly] = useState(false);
 	const [showTrust, setShowTrust] = useState(true);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -40,6 +53,28 @@ export default function GraphPage() {
 		};
 	}, [minScore]);
 
+	// Fetched separately and only when asked for. The persona view is the
+	// default because "are these the same person?" is the usual question; the
+	// entity view answers "what do they share?", which is the follow-up.
+	useEffect(() => {
+		if (view !== "entity") return;
+		let cancelled = false;
+		setLoading(true);
+		api<EntityGraphPayload>("/graph/entity", { shared_only: sharedOnly })
+			.then((data) => {
+				if (!cancelled) {
+					setEntity(data);
+					setError(null);
+					setSelectedEntity(null);
+				}
+			})
+			.catch((err: Error) => !cancelled && setError(err.message))
+			.finally(() => !cancelled && setLoading(false));
+		return () => {
+			cancelled = true;
+		};
+	}, [view, sharedOnly]);
+
 	const refused = payload?.nodes.filter((n) => n.stylometry_refused) ?? [];
 
 	return (
@@ -48,36 +83,85 @@ export default function GraphPage() {
 				<h1 className={styles.title}>
 					<Share2 size={20} /> Link graph
 				</h1>
-				<p className={styles.subtitle}>{payload?.note}</p>
+				{/* No role="group": each button carries aria-pressed and its own
+				    label, so a wrapper role adds nothing a screen reader needs,
+				    and the semantic element the rule wants is <fieldset>, which
+				    is for grouping form controls. */}
+				<div className={styles.viewToggle}>
+					<button
+						type="button"
+						className={styles.viewButton}
+						data-active={view === "persona"}
+						aria-pressed={view === "persona"}
+						onClick={() => setView("persona")}
+					>
+						Personas
+					</button>
+					<button
+						type="button"
+						className={styles.viewButton}
+						data-active={view === "entity"}
+						aria-pressed={view === "entity"}
+						onClick={() => setView("entity")}
+					>
+						Identifiers
+					</button>
+				</div>
+				<p className={styles.subtitle}>{view === "entity" ? entity?.note : payload?.note}</p>
 			</header>
 
 			<div className={styles.layout}>
 				<TacticalPanel
-					title="Personas"
+					title={view === "entity" ? "Identifiers" : "Personas"}
 					subtitle={
-						payload
-							? `${payload.nodes.length} nodes, ${payload.edges.length} edges at ≥ ${minScore.toFixed(2)}`
-							: "loading"
+						view === "entity"
+							? entity
+								? `${entity.nodes.length} nodes, ${entity.edges.length} edges, ${entity.hub_count} shared by more than one persona`
+								: "loading"
+							: payload
+								? `${payload.nodes.length} nodes, ${payload.edges.length} edges at ≥ ${minScore.toFixed(2)}`
+								: "loading"
 					}
 					loading={loading}
 					headerRight={
-						<label className={styles.slider}>
-							<span>min score {minScore.toFixed(2)}</span>
-							<input
-								type="range"
-								min={0}
-								max={1}
-								step={0.05}
-								value={minScore}
-								onChange={(e) => setMinScore(Number(e.target.value))}
-							/>
-						</label>
+						view === "entity" ? (
+							<label className={styles.sharedToggle}>
+								<input
+									type="checkbox"
+									checked={sharedOnly}
+									onChange={(e) => setSharedOnly(e.target.checked)}
+								/>
+								<span>hubs only</span>
+							</label>
+						) : (
+							<label className={styles.slider}>
+								<span>min score {minScore.toFixed(2)}</span>
+								<input
+									type="range"
+									min={0}
+									max={1}
+									step={0.05}
+									value={minScore}
+									onChange={(e) => setMinScore(Number(e.target.value))}
+								/>
+							</label>
+						)
 					}
 				>
 					{error ? (
 						<p className={styles.error} role="alert">
 							{error}
 						</p>
+					) : view === "entity" ? (
+						entity && (
+							<EntityGraph
+								nodes={entity.nodes}
+								edges={entity.edges}
+								trustEdges={showTrust ? entity.trust_edges : []}
+								selectedNode={selectedEntity}
+								onSelectNode={setSelectedEntity}
+							/>
+						)
 					) : (
 						payload && (
 							<ForceGraph
@@ -89,58 +173,113 @@ export default function GraphPage() {
 							/>
 						)
 					)}
-					<div className={styles.legend}>
-						<span>
-							<i className={styles.swCritical} /> CONFIRMED
-						</span>
-						<span>
-							<i className={styles.swHigh} /> PROBABLE
-						</span>
-						<span>
-							<i className={styles.swMedium} /> POSSIBLE
-						</span>
-						<span>
-							<i className={styles.swLow} /> WEAK
-						</span>
-						<span className={styles.legendNote}>
-							thickness = score · dashed ring = stylometry refused
-						</span>
-						{payload && payload.trust_edges.length > 0 && (
-							<label className={styles.trustToggle}>
-								<input
-									type="checkbox"
-									checked={showTrust}
-									onChange={(e) => setShowTrust(e.target.checked)}
-								/>
-								<i className={styles.swTrust} /> shared buyers ({payload.trust_edges.length}) —
-								context, not a score
-							</label>
-						)}
-					</div>
+					{view === "entity" ? (
+						<div className={styles.legend}>
+							<span className={styles.legendNote}>
+								ring = shared by more than one persona · dashed edge = a handle we normalised, not
+								something they published · nothing here is scored
+							</span>
+							{showTrust && entity && entity.trust_edges.length > 0 && (
+								<label className={styles.trustToggle}>
+									<input
+										type="checkbox"
+										checked={showTrust}
+										onChange={(e) => setShowTrust(e.target.checked)}
+									/>
+									<i className={styles.swTrust} /> shared buyers ({entity.trust_edges.length})
+								</label>
+							)}
+						</div>
+					) : (
+						<div className={styles.legend}>
+							<span>
+								<i className={styles.swCritical} /> CONFIRMED
+							</span>
+							<span>
+								<i className={styles.swHigh} /> PROBABLE
+							</span>
+							<span>
+								<i className={styles.swMedium} /> POSSIBLE
+							</span>
+							<span>
+								<i className={styles.swLow} /> WEAK
+							</span>
+							<span className={styles.legendNote}>
+								thickness = score · dashed ring = stylometry refused
+							</span>
+							{payload && payload.trust_edges.length > 0 && (
+								<label className={styles.trustToggle}>
+									<input
+										type="checkbox"
+										checked={showTrust}
+										onChange={(e) => setShowTrust(e.target.checked)}
+									/>
+									<i className={styles.swTrust} /> shared buyers ({payload.trust_edges.length}) —
+									context, not a score
+								</label>
+							)}
+						</div>
+					)}
 				</TacticalPanel>
 
 				<aside className={styles.side}>
-					<TacticalPanel
-						title="Evidence"
-						subtitle={selected ? `${selected.score.toFixed(3)} ${selected.band}` : "click an edge"}
-					>
-						{selected ? (
-							<div className={styles.detail}>
-								<BandPill band={selected.band} score={selected.score} />
-								<ComponentBreakdown components={selected.components} />
-								<EvidenceList
-									evidence={selected.evidence}
-									omit={["component_breakdown", "component_not_assessed"]}
-								/>
-							</div>
-						) : (
-							<p className={styles.hint}>
-								Each edge carries the reasons that produced it — shared identifiers, writeprint
-								cosine, posting-hour overlap, and which components could not be assessed at all.
-								Click one.
-							</p>
-						)}
-					</TacticalPanel>
+					{view === "entity" ? (
+						<TacticalPanel
+							title="Node"
+							subtitle={
+								selectedEntity
+									? `${selectedEntity.kind} · ${selectedEntity.personas.length} persona(s)`
+									: "click a node"
+							}
+						>
+							{selectedEntity ? (
+								<div className={styles.detail}>
+									<p className={styles.entityValue}>{selectedEntity.value}</p>
+									<p className={styles.hint}>
+										{selectedEntity.shared
+											? `Published by ${selectedEntity.personas.length} personas of this corpus — a hub. The same evidence appears inside the persona view's edges; here it is the node.`
+											: "Published by one persona. Not a hub, and not evidence of anything on its own."}
+									</p>
+									{/* No score, because there is none. An edge here
+									    means "this persona published this value". */}
+									<p className={styles.hint}>
+										Relationship edges in this view carry no score and take no part in attribution.
+									</p>
+								</div>
+							) : (
+								<p className={styles.hint}>
+									Nodes are personas and the identifiers they published. A node with a ring is
+									touched by more than one persona — a shared PGP key, wallet or mailbox. That is
+									the same evidence the persona view carries inside its edges, drawn where it can be
+									seen.
+								</p>
+							)}
+						</TacticalPanel>
+					) : (
+						<TacticalPanel
+							title="Evidence"
+							subtitle={
+								selected ? `${selected.score.toFixed(3)} ${selected.band}` : "click an edge"
+							}
+						>
+							{selected ? (
+								<div className={styles.detail}>
+									<BandPill band={selected.band} score={selected.score} />
+									<ComponentBreakdown components={selected.components} />
+									<EvidenceList
+										evidence={selected.evidence}
+										omit={["component_breakdown", "component_not_assessed"]}
+									/>
+								</div>
+							) : (
+								<p className={styles.hint}>
+									Each edge carries the reasons that produced it — shared identifiers, writeprint
+									cosine, posting-hour overlap, and which components could not be assessed at all.
+									Click one.
+								</p>
+							)}
+						</TacticalPanel>
+					)}
 
 					{/* Shown whenever the edges are drawn. A dashed line on a link
 					    graph reads as a weak link unless something says otherwise,

@@ -10,12 +10,14 @@ import {
 import { TacticalPanel } from "@/components/tactical";
 import {
 	type ActorDetail,
+	type ActorProfileEntry,
+	type LeadEntry,
 	type LinkSummary,
 	type PersonaDetail,
 	api,
 	formatDate,
 } from "@/lib/attribution";
-import { ArrowLeft, Fingerprint } from "lucide-react";
+import { ArrowLeft, Bot, ExternalLink, Fingerprint, Globe, NotebookPen } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "./actor.module.css";
@@ -55,6 +57,17 @@ function PersonaCard({ persona }: { persona: PersonaDetail }) {
 				<h3 className={styles.personaHandle}>{persona.handle}</h3>
 				<span className={styles.personaSource}>
 					{persona.source_name ?? "unknown source"} · {persona.post_count} posts
+					{persona.source_reliability !== null && (
+						<>
+							{" · "}
+							<span
+								className={styles.reliability}
+								title="How much this source is trusted, 0–1. It orders which sources the scheduler visits first. It does not weight any score: weighting was measured and made the separation margin worse (scripts/measure_reliability.py)."
+							>
+								source reliability {persona.source_reliability.toFixed(2)}
+							</span>
+						</>
+					)}
 				</span>
 				{persona.stylometry_refused && <RefusedPill reason={persona.stylometry_refused_reason} />}
 			</header>
@@ -121,6 +134,84 @@ function LinkCard({ link }: { link: LinkSummary }) {
 	);
 }
 
+/**
+ * The behavioural profile, with its provenance above it rather than beneath.
+ * A reader who skims the prose and skips a footnote has been misled about
+ * where it came from, so the label is the first thing in the panel and `kind`
+ * comes from the server — this component never decides for itself.
+ */
+function ProfilePanel({ profile }: { profile: ActorProfileEntry }) {
+	const isAi = profile.kind === "ai";
+	return (
+		<TacticalPanel
+			title="Behavioural profile"
+			subtitle="a description of stored features — not evidence, and not part of any score"
+			icon={isAi ? <Bot size={20} /> : <NotebookPen size={20} />}
+		>
+			<p className={styles.profileLabel} data-kind={profile.kind}>
+				{profile.label}
+				{isAi && profile.model ? ` · ${profile.model}` : ""}
+			</p>
+			<p className={styles.profileText}>{profile.text}</p>
+		</TacticalPanel>
+	);
+}
+
+function LeadRow({ lead }: { lead: LeadEntry }) {
+	return (
+		<li className={styles.lead}>
+			<div className={styles.leadHead}>
+				<span className={styles.leadBand} data-band={lead.band}>
+					{lead.band}
+				</span>
+				<span className={styles.leadKind}>{lead.kind.replace(/_/g, " ")}</span>
+				{lead.url ? (
+					<a className={styles.leadValue} href={lead.url} target="_blank" rel="noreferrer noopener">
+						{lead.value}
+						<ExternalLink size={11} aria-hidden="true" />
+					</a>
+				) : (
+					<span className={styles.leadValue}>{lead.value}</span>
+				)}
+			</div>
+			<p className={styles.leadWhy}>{lead.why}</p>
+			{/* The caveat is not a tooltip. A lead read without what it does not
+			    prove is the failure mode this whole panel exists to avoid. */}
+			<p className={styles.leadCaveat}>{lead.caveat}</p>
+		</li>
+	);
+}
+
+function LeadsPanel({ leads, note }: { leads: LeadEntry[]; note: string }) {
+	const groups: { scope: "actor" | "source"; heading: string }[] = [
+		{ scope: "actor", heading: "Published by this actor" },
+		{ scope: "source", heading: "Infrastructure behind the sites they post on" },
+	];
+	return (
+		<TacticalPanel
+			title="Clearnet leads"
+			subtitle={`${leads.length} pointer(s) outside Tor — investigative leads, never conclusions`}
+			icon={<Globe size={20} />}
+		>
+			<p className={styles.leadsNote}>{note}</p>
+			{groups.map(({ scope, heading }) => {
+				const group = leads.filter((lead) => lead.scope === scope);
+				if (group.length === 0) return null;
+				return (
+					<section key={scope} className={styles.leadGroup}>
+						<h4 className={styles.leadGroupTitle}>{heading}</h4>
+						<ul className={styles.leadList}>
+							{group.map((lead) => (
+								<LeadRow key={`${lead.kind}-${lead.value}`} lead={lead} />
+							))}
+						</ul>
+					</section>
+				);
+			})}
+		</TacticalPanel>
+	);
+}
+
 export default function ActorDetailPage({ params }: { params: { id: string } }) {
 	const [actor, setActor] = useState<ActorDetail | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -176,6 +267,8 @@ export default function ActorDetailPage({ params }: { params: { id: string } }) 
 				{actor?.notes && <p className={styles.notes}>{actor.notes}</p>}
 			</header>
 
+			{actor?.profile && <ProfilePanel profile={actor.profile} />}
+
 			<TacticalPanel
 				title="Linked personas"
 				subtitle="every persona this actor resolves to"
@@ -210,6 +303,10 @@ export default function ActorDetailPage({ params }: { params: { id: string } }) 
 					</div>
 				)}
 			</TacticalPanel>
+
+			{actor && actor.leads.length > 0 && (
+				<LeadsPanel leads={actor.leads} note={actor.leads_note} />
+			)}
 
 			{actor && actor.trust_edges.length > 0 && (
 				<TacticalPanel

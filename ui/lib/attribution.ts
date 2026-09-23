@@ -59,6 +59,13 @@ export interface PersonaSummary {
 	stylometry_refused: boolean;
 	stylometry_refused_reason: string | null;
 	char_count: number | null;
+	/**
+	 * How much the source this persona was collected from is trusted, 0..1.
+	 * Displayed and used to order the scheduler's visits. It does NOT weight
+	 * any score — measured, and it made the separation margin worse. See
+	 * scripts/measure_reliability.py.
+	 */
+	source_reliability: number | null;
 }
 
 export interface PersonaDetail extends PersonaSummary {
@@ -110,6 +117,45 @@ export interface ActorDetail extends ActorSummary {
 	trust_edges: TrustEdge[];
 	trust_note: string;
 	timeline: TimelineBucket[];
+	/** Pointers outside Tor. Investigative context, never part of the score. */
+	leads: LeadEntry[];
+	leads_note: string;
+	profile: ActorProfileEntry | null;
+}
+
+/**
+ * One pointer at the world outside Tor. Bands are qualitative on purpose:
+ * there is no ground truth linking a persona to a real-world identity, so a
+ * decimal here would have the shape of a measurement and none of the
+ * substance. See link/leads.py.
+ */
+export interface LeadEntry {
+	kind: string;
+	value: string;
+	band: "STRONG" | "MODERATE" | "WEAK";
+	why: string;
+	caveat: string;
+	/** "actor" — they published it. "source" — infrastructure they merely sit on. */
+	scope: "actor" | "source";
+	personas: number[];
+	url: string | null;
+	detail: Record<string, unknown>;
+}
+
+/**
+ * A behavioural profile and, crucially, which kind it is. `kind` and `label`
+ * both arrive from the server rather than being reconstructed here: a
+ * renderer that decides for itself whether prose came from a model will
+ * eventually decide wrong, and a template shown as AI output is invisible to
+ * the person reading it.
+ */
+export interface ActorProfileEntry {
+	text: string;
+	kind: "ai" | "rule-based";
+	label: string;
+	model: string | null;
+	provider: string | null;
+	affects_score: false;
 }
 
 /**
@@ -142,6 +188,38 @@ export interface GraphNode {
 	category: string | null;
 	actor_id: number | null;
 	stylometry_refused: boolean;
+}
+
+/**
+ * A node in the entity view: a persona, or something a persona published.
+ * `id` is a string (`persona:3`, `pgp:9A1B…`) because these nodes are not all
+ * rows in one table — which is why this is a separate type from GraphNode
+ * rather than a widening of it.
+ */
+export interface EntityNode {
+	id: string;
+	kind: string;
+	label: string;
+	value: string;
+	personas: number[];
+	/** Touched by more than one persona. The hubs are the point of the view. */
+	shared: boolean;
+	detail: Record<string, unknown>;
+}
+
+export interface EntityEdge {
+	source: string;
+	target: string;
+	relation: "published" | "normalises to";
+}
+
+export interface EntityGraphPayload {
+	nodes: EntityNode[];
+	edges: EntityEdge[];
+	trust_edges: TrustEdge[];
+	trust_note: string;
+	hub_count: number;
+	note: string;
 }
 
 export interface GraphEdge {
