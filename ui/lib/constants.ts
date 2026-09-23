@@ -16,4 +16,5 @@ export const NAV_ITEMS = [
 	// Admin only. AppShell filters it out for an analyst, so they do not have to
 	// discover the restriction by being refused.
 	{ href: "/audit", label: "Audit", icon: "ScrollText" },
+	{ href: "/docs", label: "Docs", icon: "BookOpen" },
 ] as const;

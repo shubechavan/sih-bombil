@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	BookOpen,
 	CalendarRange,
 	ChevronLeft,
 	ChevronRight,
@@ -24,6 +25,7 @@ const ICONS: Record<string, React.ElementType> = {
 	Download,
 	ScanSearch,
 	ScrollText,
+	BookOpen,
 };
 
 interface NavItem {

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Sentinel v2 — SIH Presentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2a3a;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #22d3ee;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --orange: #fb923c;
+    --red: #f87171;
+    --purple: #a78bfa;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .deck {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    padding: 48px 64px;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.5s, transform 0.5s;
+    pointer-events: none;
+    overflow-y: auto;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  h1 { font-size: 2.8em; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+  h2 { font-size: 2em; font-weight: 700; color: var(--accent); margin-bottom: 16px; }
+  h3 { font-size: 1.3em; font-weight: 600; color: var(--green); margin: 16px 0 8px; }
+
+  .subtitle { font-size: 1.3em; color: var(--muted); font-weight: 300; margin-bottom: 32px; }
+  .big-number { font-size: 4em; font-weight: 800; color: var(--green); font-family: 'JetBrains Mono', monospace; }
+  .stat-label { font-size: 1.1em; color: var(--muted); margin-top: 4px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; flex: 1; align-items: start; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; flex: 1; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card.highlight { border-color: var(--accent); }
+
+  .pill {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .pill.confirmed { background: rgba(52,211,153,0.2); color: var(--green); }
+  .pill.probable { background: rgba(251,191,36,0.2); color: var(--yellow); }
+  .pill.possible { background: rgba(251,146,60,0.2); color: var(--orange); }
+  .pill.weak { background: rgba(248,113,113,0.2); color: var(--red); }
+
+  .formula {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5em;
+    color: var(--accent);
+    background: var(--surface);
+    padding: 20px 28px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    text-align: center;
+    margin: 16px 0;
+  }
+
+  .evidence-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin: 8px 0;
+    font-size: 0.95em;
+  }
+  .evidence-item .icon { font-size: 1.4em; }
+
+  .progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent);
+    transition: width 0.5s;
+    z-index: 100;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 16px;
+    right: 24px;
+    color: var(--muted);
+    font-size: 0.85em;
+    z-index: 100;
+  }
+
+  .slide-counter {
+    position: fixed;
+    bottom: 16px;
+    left: 24px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    z-index: 100;
+  }
+
+  ul { padding-left: 24px; }
+  li { margin: 8px 0; line-height: 1.6; }
+  li strong { color: var(--accent); }
+
+  .quote {
+    border-left: 3px solid var(--accent);
+    padding: 16px 24px;
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 1.1em;
+    margin: 16px 0;
+  }
+
+  .tag { display: inline-block; background: var(--surface2); padding: 2px 10px; border-radius: 6px; font-size: 0.8em; color: var(--muted); margin: 2px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 14px; color: var(--accent); font-weight: 600; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+
+  .warning { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; padding: 14px 18px; margin: 12px 0; }
+  .warning strong { color: var(--red); }
+
+  .stat-row { display: flex; gap: 32px; margin: 16px 0; }
+  .stat-box { text-align: center; flex: 1; }
+  .stat-box .num { font-size: 2.6em; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .stat-box .label { color: var(--muted); font-size: 0.9em; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide active" data-slide="0">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
+      <div style="font-size:4em;margin-bottom:16px;">🛡️</div>
+      <h1 style="font-size:3.2em;">Dark Sentinel v2</h1>
+      <p class="subtitle" style="max-width:700px;">Dark Web Threat Actor Attribution Platform</p>
+      <p style="color:var(--muted);margin:24px 0;">Finding the people behind the masks on the dark web</p>
+      <div style="display:flex;gap:16px;margin-top:24px;">
+        <span class="tag">SIH Hackathon</span>
+        <span class="tag">7 Phases Complete</span>
+        <span class="tag">414 Tests Passing</span>
+        <span class="tag">Full Docker Stack</span>
+      </div>
+      <p style="color:var(--muted);margin-top:48px;font-size:0.9em;">Press → or click to navigate</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: The Problem -->
+  <div class="slide" data-slide="1">
+    <h2>The Problem We Solve</h2>
+    <div class="grid-2">
+      <div>
+        <div class="quote">"Criminals do not get caught because Tor fails. They get caught because human operational security (OPSEC) fails."</div>
+        <h3>Dark web operators believe they are invisible</h3>
+        <ul>
+          <li>They use <strong>Tor</strong> to hide their location</li>
+          <li>They use <strong>fake usernames</strong> that change per site</li>
+          <li>They use <strong>cryptocurrency</strong> instead of bank accounts</li>
+          <li>They use <strong>encrypted messaging</strong> for communication</li>
+        </ul>
+        <h3>But humans leave patterns</h3>
+        <ul>
+          <li>They <strong>reuse</strong> encryption keys and wallet addresses</li>
+          <li>They <strong>write</strong> with the same grammar and quirks</li>
+          <li>They <strong>sleep</strong> at the same hours every night</li>
+          <li>Their <strong>servers</strong> leak real-world clues</li>
+        </ul>
+      </div>
+      <div>
+        <div class="card">
+          <h3>🏴‍☠️ Silk Road — Ross Ulbricht</h3>
+          <p style="margin:8px 0;color:var(--muted);">Used his real email <code>rossulbricht@gmail.com</code> to promote the site. PGP key tagged with laptop username <code>frosty</code>. Server leaked its real IP.</p>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>🏴 AlphaBay — Alexandre Cazes</h3>
+          <p style="margin:8px 0;color:var(--muted);">Welcome emails contained <code>pimp_alex_91@hotmail.com</code>. Reused handle "Alpha02" across forums. Consolidated crypto wallets.</p>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>🔄 Hansa, Wall Street, Darkode</h3>
+          <p style="margin:8px 0;color:var(--muted);">Shared TLS certs, Favicon hashes, server banners, and identical posting-hour distributions across migrations.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: What It Does -->
+  <div class="slide" data-slide="2">
+    <h2>What Dark Sentinel v2 Does</h2>
+    <p class="subtitle">Automates the exact investigative techniques that caught Silk Road & AlphaBay operators</p>
+    <div class="grid-4" style="margin-top:24px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2.5em;margin-bottom:12px;">📥</div>
+        <h3 style="color:var(--text);">Collects</h3>
+        <p style="color:var(--muted);font-size:0.9em;">Crawls dark web marketplaces and forums through Tor, safely and passively</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2.5em;margin-bottom:12px;">🔬</div>
+        <h3 style="color:var(--text);">Extracts</h3>
+        <p style="color:var(--muted);font-size:0.9em;">Finds crypto wallets, PGP keys, emails, handles — and verifies them mathematically</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2.5em;margin-bottom:12px;">🔗</div>
+        <h3 style="color:var(--text);">Links</h3>
+        <p style="color:var(--muted);font-size:0.9em;">Connects accounts using writing style, behavior, and shared identifiers</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2.5em;margin-bottom:12px;">📊</div>
+        <h3 style="color:var(--text);">Reports</h3>
+        <p style="color:var(--muted);font-size:0.9em;">Shows confidence scores with full evidence trails. Exports court-style PDF reports</p>
+      </div>
+    </div>
+    <div class="warning" style="margin-top:24px;">
+      <strong>⚖️ IMPORTANT:</strong> Outputs are investigative leads requiring human corroboration, never conclusions. Every action is logged with operator identity and a tamper-proof SHA-256 hash.
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Architecture -->
+  <div class="slide" data-slide="3">
+    <h2>Five-Layer Architecture</h2>
+    <div style="display:flex;flex-direction:column;gap:12px;flex:1;">
+      <div class="card" style="border-left:4px solid #06b6d4;display:flex;align-items:center;gap:20px;">
+        <div style="font-size:1.8em;min-width:50px;text-align:center;">🔭</div>
+        <div><strong style="color:#06b6d4">Layer 1 — Collection</strong><br/><span style="color:var(--muted)">Crawl dark web sites through Tor. Lab hidden service for testing with real Tor circuits. Rate-limited: 1 req / 2s.</span></div>
+      </div>
+      <div class="card" style="border-left:4px solid #8b5cf6;display:flex;align-items:center;gap:20px;">
+        <div style="font-size:1.8em;min-width:50px;text-align:center;">🔬</div>
+        <div><strong style="color:#8b5cf6">Layer 2 — Extraction</strong><br/><span style="color:var(--muted)">BTC/ETH/XMR wallets (checksum-verified), PGP fingerprints, emails, Telegram, Jabber. Leet-speak decode: Dr3adPirat3 → dreadpirate.</span></div>
+      </div>
+      <div class="card" style="border-left:4px solid #f59e0b;display:flex;align-items:center;gap:20px;">
+        <div style="font-size:1.8em;min-width:50px;text-align:center;">🔎</div>
+        <div><strong style="color:#f59e0b">Layer 3 — Reconnaissance</strong><br/><span style="color:var(--muted)">Passive server fingerprinting: HTTP headers, ETag, favicon mmh3 hash, TLS cert SANs, /server-status leaks. Clearnet correlation via Shodan.</span></div>
+      </div>
+      <div class="card" style="border-left:4px solid #ec4899;display:flex;align-items:center;gap:20px;">
+        <div style="font-size:1.8em;min-width:50px;text-align:center;">🧩</div>
+        <div><strong style="color:#ec4899">Layer 4 — Linking</strong><br/><span style="color:var(--muted)">Stylometry (TF-IDF writeprints), 24h posting-hour histogram, trade vocabulary Jaccard, network graph, cluster resolution.</span></div>
+      </div>
+      <div class="card" style="border-left:4px solid #34d399;display:flex;align-items:center;gap:20px;">
+        <div style="font-size:1.8em;min-width:50px;text-align:center;">📊</div>
+        <div><strong style="color:#34d399">Layer 5 — Scoring & Output</strong><br/><span style="color:var(--muted)">Weighted formula → confidence bands. Dashboard, live paste analysis, PDF dossier, CSV/JSON export. Full audit log.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: The Formula -->
+  <div class="slide" data-slide="4">
+    <h2>The Attribution Formula</h2>
+    <p class="subtitle">Transparent, explainable, court-defensible</p>
+    <div class="formula">A = 0.40 × H + 0.25 × S + 0.20 × B + 0.15 × I</div>
+    <div class="grid-4" style="margin-top:24px;">
+      <div class="card highlight" style="text-align:center;">
+        <div style="font-size:2em;color:var(--accent);">H</div>
+        <strong>Hard Identifiers</strong>
+        <p style="font-size:2em;color:var(--accent);font-weight:800;">40%</p>
+        <p style="color:var(--muted);font-size:0.85em;">PGP keys, crypto wallets, emails, handles</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;color:var(--purple);">S</div>
+        <strong>Writing Style</strong>
+        <p style="font-size:2em;color:var(--purple);font-weight:800;">25%</p>
+        <p style="color:var(--muted);font-size:0.85em;">5000-dim TF-IDF writeprint cosine similarity</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;color:var(--yellow);">B</div>
+        <strong>Behaviour</strong>
+        <p style="font-size:2em;color:var(--yellow);font-weight:800;">20%</p>
+        <p style="color:var(--muted);font-size:0.85em;">24h posting histogram, trade vocab, categories</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;color:var(--orange);">I</div>
+        <strong>Infrastructure</strong>
+        <p style="font-size:2em;color:var(--orange);font-weight:800;">15%</p>
+        <p style="color:var(--muted);font-size:0.85em;">TLS certs, favicon hash, banners, ETags</p>
+      </div>
+    </div>
+    <div class="grid-4" style="margin-top:16px;">
+      <div style="text-align:center;"><span class="pill confirmed">CONFIRMED ≥ 0.85</span></div>
+      <div style="text-align:center;"><span class="pill probable">PROBABLE 0.65–0.84</span></div>
+      <div style="text-align:center;"><span class="pill possible">POSSIBLE 0.45–0.64</span></div>
+      <div style="text-align:center;"><span class="pill weak">WEAK &lt; 0.45</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Worked Example -->
+  <div class="slide" data-slide="5">
+    <h2>Worked Example — Catching a Rebranded Vendor</h2>
+    <div class="grid-2">
+      <div>
+        <div class="card" style="border-left:4px solid var(--red);">
+          <h3>🏪 Market Alpha (shut down)</h3>
+          <p style="margin:4px 0;"><strong>Dr3adPirat3</strong></p>
+          <p style="color:var(--muted);font-size:0.9em;">PGP: CE5883... | Jabber: dread@jabber.de</p>
+          <p style="color:var(--muted);font-size:0.9em;">Active 2AM-6AM UTC | "cheers mate; recieve"</p>
+        </div>
+        <div style="text-align:center;font-size:2em;margin:12px 0;">⬇️</div>
+        <div class="card" style="border-left:4px solid var(--green);">
+          <h3>🏪 Market Gamma (new site)</h3>
+          <p style="margin:4px 0;"><strong>BlackSailsRX</strong></p>
+          <p style="color:var(--muted);font-size:0.9em;">PGP: CE5883... | New email</p>
+          <p style="color:var(--muted);font-size:0.9em;">Active 2AM-6AM UTC | "cheers mate; recieve"</p>
+        </div>
+      </div>
+      <div>
+        <h3>Result: <span class="pill confirmed">CONFIRMED — 0.925</span></h3>
+        <div class="evidence-item"><span class="icon">🔑</span> <strong>H = 1.000</strong> — Identical PGP key CE5883...</div>
+        <div class="evidence-item"><span class="icon">✍️</span> <strong>S = 0.857</strong> — Same semicolons, greetings, misspellings</div>
+        <div class="evidence-item"><span class="icon">🕐</span> <strong>B = 0.858</strong> — Same active hours (2–6 AM UTC)</div>
+        <div class="evidence-item" style="border-left:3px solid var(--orange);">
+          <span class="icon">⚙️</span> <strong>I = Not Assessed</strong> — Neither controls their own server (explained, not hidden)
+        </div>
+        <div style="margin-top:20px;">
+          <h3>Third account via cluster resolution</h3>
+          <p style="color:var(--muted);font-size:0.9em;"><strong>Dread_P1rate</strong> (Forum Beta) shares a Jabber ID with Dr3adPirat3 but nothing with BlackSailsRX directly. All three resolve to <strong>one actor</strong> through the shared connection.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: The Refusals -->
+  <div class="slide" data-slide="6">
+    <h2>What the System Refuses to Do</h2>
+    <p class="subtitle">A tool that only says "yes" is a tool that's guessing</p>
+    <div class="grid-3" style="margin-top:16px;">
+      <div class="card">
+        <div style="font-size:2em;text-align:center;margin-bottom:12px;">📄</div>
+        <h3>Too Little Text</h3>
+        <p style="color:var(--muted);font-size:0.9em;">Account "paperghost" has only <strong>152 characters</strong>. The floor is 300.</p>
+        <p style="margin-top:12px;">→ Stylometry returns <strong style="color:var(--orange);">NOT ASSESSED</strong></p>
+        <p style="color:var(--muted);font-size:0.85em;margin-top:8px;">Rather than guessing from two sentences, the weight is redistributed to what can be measured.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:2em;text-align:center;margin-bottom:12px;">💰</div>
+        <h3>Invalid Wallets</h3>
+        <p style="color:var(--muted);font-size:0.9em;">"CryoVault" posted a Bitcoin address that <strong>fails Base58Check</strong>.</p>
+        <p style="margin-top:12px;">→ Address is <strong style="color:var(--red);">DROPPED</strong>, never stored</p>
+        <p style="color:var(--muted);font-size:0.85em;margin-top:8px;">A regex-only match on hex strings would link everyone to everyone. Checksum validation prevents phantom links.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:2em;text-align:center;margin-bottom:12px;">👥</div>
+        <h3>Look-Alikes</h3>
+        <p style="color:var(--muted);font-size:0.9em;">"NordicPharm" and "AtlasMeds" write in a similar formal style.</p>
+        <p style="margin-top:12px;">→ Score: <span class="pill weak">WEAK — 0.242</span></p>
+        <p style="color:var(--muted);font-size:0.85em;margin-top:8px;">Different posting hours (0.08 overlap) and different misspellings. Correctly recognized as distinct actors.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px;border-left:4px solid var(--yellow);">
+      <h3>🧪 Buyer Trust Signal — Measured, then Rejected</h3>
+      <p style="color:var(--muted);font-size:0.9em;">Shared buyer reviews yield <strong>ROC-AUC 0.389</strong> — worse than a coin flip. Wrong pairs score <em>higher</em> because buyers shop around. Shown as dashed lines on the graph, never added to the score.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Live Paste -->
+  <div class="slide" data-slide="7">
+    <h2>Live Analysis — "Prove It's Not Canned"</h2>
+    <p class="subtitle">The /analyze page takes text nobody has ever seen and scores it live</p>
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <h3>How It Works</h3>
+          <ul>
+            <li>Paste <strong>any text</strong> — a news article, vendor bio, anything</li>
+            <li>Text is vectorized against the <strong>stored vocabulary</strong> (no refit)</li>
+            <li>Compared against all <strong>20 stored writing profiles</strong></li>
+            <li>Scored using the <strong>exact same formula</strong> as batch mode</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>The Control Test</h3>
+          <p style="color:var(--muted);font-size:0.9em;">Paste Dr3adPirat3's own text back:</p>
+          <div class="evidence-item"><strong>Dr3adPirat3:</strong> S = 1.000 ✅</div>
+          <div class="evidence-item"><strong>BlackSailsRX:</strong> S = 0.857</div>
+          <div class="evidence-item"><strong>Dread_P1rate:</strong> S = 0.762</div>
+          <p style="color:var(--muted);font-size:0.85em;margin-top:8px;">Same actor, three handles, no identifiers in the paste. Pure writing style.</p>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="background:var(--surface2);border-color:var(--accent);">
+          <h3 style="color:var(--accent);">🧪 Live Analysis Demo</h3>
+          <p style="color:var(--muted);font-size:0.9em;margin:12px 0;">Below 300 characters → REFUSES, same as paperghost.</p>
+          <p style="color:var(--muted);font-size:0.9em;">The vocabulary is <strong>never refitted</strong> on pasted text — a mathematical guarantee that the paste cannot move anyone else's score.</p>
+          <div style="margin-top:16px;padding:16px;background:var(--bg);border-radius:8px;">
+            <p style="color:var(--muted);font-size:0.85em;font-style:italic;">"Everything so far is us showing you our answer key. This takes text we have never seen. Paste whatever you like."</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: The Numbers -->
+  <div class="slide" data-slide="8">
+    <h2>Evaluation Results</h2>
+    <p class="subtitle">Measured on a synthetic corpus with a known answer key — 20 personas, 3 sites, 14 actors</p>
+    <div class="stat-row">
+      <div class="stat-box"><div class="num" style="color:var(--green);">100%</div><div class="label">Precision<br/>Zero false accusations</div></div>
+      <div class="stat-box"><div class="num" style="color:var(--accent);">8/8</div><div class="label">Recall with Clusters<br/>All migrations found</div></div>
+      <div class="stat-box"><div class="num" style="color:var(--yellow);">+0.508</div><div class="label">Separation Margin<br/>Gap between best false & worst true</div></div>
+      <div class="stat-box"><div class="num" style="color:var(--purple);">414</div><div class="label">Tests Passing<br/>+ 49 browser checks</div></div>
+    </div>
+    <div class="grid-2" style="margin-top:24px;">
+      <div>
+        <table>
+          <tr><th>Pair</th><th>Score</th><th>Band</th></tr>
+          <tr><td>Dr3adPirat3 ↔ BlackSailsRX</td><td>0.925</td><td><span class="pill confirmed">CONFIRMED</span></td></tr>
+          <tr><td>Vect0rShop ↔ V3ct0r_Supply</td><td>0.909</td><td><span class="pill confirmed">CONFIRMED</span></td></tr>
+          <tr><td>silk_hands ↔ SilkHands</td><td>0.884</td><td><span class="pill confirmed">CONFIRMED</span></td></tr>
+          <tr><td>NordicPharm ↔ NordPharmaEU</td><td>0.862</td><td><span class="pill confirmed">CONFIRMED</span></td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="card">
+          <h3>Hard Negatives — Both Passed ✅</h3>
+          <div class="evidence-item"><strong>NordicPharm ↔ AtlasMeds:</strong> 0.242 <span class="pill weak">WEAK</span></div>
+          <div class="evidence-item"><strong>silk_hands ↔ plainbagel:</strong> 0.228 <span class="pill weak">WEAK</span></div>
+          <p style="color:var(--muted);font-size:0.85em;margin-top:8px;">Designed to look like matches. Both correctly rejected. Posting-hour histogram is what refuses them — 0.08 and 0.18 overlap.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: The Dashboard -->
+  <div class="slide" data-slide="9">
+    <h2>The Dashboard — 8 Pages</h2>
+    <div class="grid-4" style="margin-top:16px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">🔐</div>
+        <strong>Login</strong>
+        <p style="color:var(--muted);font-size:0.8em;">JWT auth, analyst & admin roles</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">📋</div>
+        <strong>/actors</strong>
+        <p style="color:var(--muted);font-size:0.8em;">Sortable table, band filters</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">👤</div>
+        <strong>/actors/[id]</strong>
+        <p style="color:var(--muted);font-size:0.8em;">Full dossier with evidence</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">🕸️</div>
+        <strong>/graph</strong>
+        <p style="color:var(--muted);font-size:0.8em;">Force-directed link graph</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">🧪</div>
+        <strong>/analyze</strong>
+        <p style="color:var(--muted);font-size:0.8em;">Live paste scoring</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">📊</div>
+        <strong>/timeline</strong>
+        <p style="color:var(--muted);font-size:0.8em;">Activity over time</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">📄</div>
+        <strong>/export</strong>
+        <p style="color:var(--muted);font-size:0.8em;">CSV, JSON, PDF reports</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:1.5em;margin-bottom:8px;">📝</div>
+        <strong>/audit</strong>
+        <p style="color:var(--muted);font-size:0.8em;">Who looked at what</p>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:16px;">
+      <div class="card"><strong>9 API Routers</strong><p style="color:var(--muted);font-size:0.85em;">actors, graph, timeline, recon, scan, export, analyze, audit, auth — OpenAPI docs at /docs</p></div>
+      <div class="card"><strong>Attribution Components</strong><p style="color:var(--muted);font-size:0.85em;">BandPill, ComponentBreakdown, EvidenceList, ForceGraph, RefusalNotice — custom-built for this domain</p></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Full Stack -->
+  <div class="slide" data-slide="10">
+    <h2>One-Command Deployment</h2>
+    <div class="formula" style="font-size:1.2em;">docker compose up -d --build && docker compose run --rm seed</div>
+    <div class="grid-3" style="margin-top:24px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;">🗄️</div>
+        <strong>PostgreSQL 16</strong>
+        <p style="color:var(--muted);font-size:0.85em;">All actors, identifiers, links, evidence, audit log</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;">🌑</div>
+        <strong>Tor Proxy</strong>
+        <p style="color:var(--muted);font-size:0.85em;">SOCKS5 proxy for anonymous dark web access</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;">⚡</div>
+        <strong>FastAPI</strong>
+        <p style="color:var(--muted);font-size:0.85em;">REST API on port 8000, health checks, auto-docs</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;">🖥️</div>
+        <strong>Next.js 14</strong>
+        <p style="color:var(--muted);font-size:0.85em;">Dashboard on port 3000, standalone build (354 MB)</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;">🧪</div>
+        <strong>Lab Target</strong>
+        <p style="color:var(--muted);font-size:0.85em;">Practice marketplace over real Tor v3 hidden service</p>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:2em;">🔄</div>
+        <strong>CI/CD</strong>
+        <p style="color:var(--muted);font-size:0.85em;">GitHub Actions: pytest, biome, tsc, next build, Playwright</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;border-left:4px solid var(--accent);">
+      <strong>Autonomous Mode</strong> — NOT started automatically. <code>docker compose exec api python scripts/scheduler.py --start</code>. A tool that crawls the dark web because somebody ran <code>up</code> is not one anybody should run.
+    </div>
+  </div>
+
+  <!-- SLIDE 12: What Makes This Different -->
+  <div class="slide" data-slide="11">
+    <h2>What Makes This Project Different</h2>
+    <div class="grid-2" style="margin-top:16px;">
+      <div>
+        <div class="evidence-item"><span class="icon">📐</span><strong>We have numbers.</strong> Precision 1.000, recall 6/8 direct, margin +0.508. Almost nobody else does.</div>
+        <div class="evidence-item"><span class="icon">📝</span><strong>Evidence, not scores.</strong> Every link explains itself. "Same PGP fingerprint CE5883..., writeprint cosine 0.857."</div>
+        <div class="evidence-item"><span class="icon">🚫</span><strong>We show what we refuse.</strong> Too little text → refuses. Bad checksum → drops. Buyer overlap → measured and rejected.</div>
+        <div class="evidence-item"><span class="icon">🧪</span><strong>We argue against ourselves.</strong> The site-broadcast test proves the obvious shortcut hurts. The buyer ROC-AUC proves the obvious signal is noise.</div>
+      </div>
+      <div>
+        <div class="evidence-item"><span class="icon">🔒</span><strong>Chain of custody.</strong> Operator login on every action. SHA-256 hash per scan. Audit log on every read.</div>
+        <div class="evidence-item"><span class="icon">🌐</span><strong>Real Tor crawl, verified.</strong> 33 requests, 74 seconds, 424 fields byte-identical to the offline corpus.</div>
+        <div class="evidence-item"><span class="icon">⚖️</span><strong>Court-grade vocabulary.</strong> CONFIRMED / PROBABLE / POSSIBLE / WEAK — how real intelligence products are written.</div>
+        <div class="evidence-item"><span class="icon">🛡️</span><strong>Passive only.</strong> Reads what servers already publish. No exploitation. No auth bypass. No brute force.</div>
+      </div>
+    </div>
+    <div class="quote" style="margin-top:24px;">"The honest test is the hard negatives. Regex can't refuse — pairs 2↔20 and 4↔15 were built to look like matches, and both stay WEAK."</div>
+  </div>
+
+  <!-- SLIDE 13: Summary -->
+  <div class="slide" data-slide="12">
+    <h2>Summary</h2>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;">
+      <div class="stat-row" style="max-width:900px;">
+        <div class="stat-box"><div class="num" style="color:var(--green);">7</div><div class="label">Phases Complete</div></div>
+        <div class="stat-box"><div class="num" style="color:var(--accent);">414</div><div class="label">Tests Passing</div></div>
+        <div class="stat-box"><div class="num" style="color:var(--yellow);">100%</div><div class="label">Precision</div></div>
+        <div class="stat-box"><div class="num" style="color:var(--purple);">0</div><div class="label">False Positives</div></div>
+      </div>
+      <div style="max-width:700px;margin-top:32px;">
+        <p style="font-size:1.2em;color:var(--muted);line-height:1.8;">Dark Sentinel v2 automates the exact forensic techniques that caught the operators of Silk Road and AlphaBay — with mathematical transparency, evidence trails, and the intellectual honesty to measure and reject signals that don't work.</p>
+      </div>
+      <div style="margin-top:32px;display:flex;gap:12px;">
+        <span class="tag">Python 3.11</span>
+        <span class="tag">FastAPI</span>
+        <span class="tag">PostgreSQL</span>
+        <span class="tag">Next.js 14</span>
+        <span class="tag">Docker Compose</span>
+        <span class="tag">scikit-learn</span>
+        <span class="tag">NetworkX</span>
+        <span class="tag">Tor</span>
+        <span class="tag">GitHub Actions CI</span>
+      </div>
+      <p style="color:var(--muted);margin-top:48px;font-size:1.1em;">🛡️ <strong>Authorized Investigative Use Only</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<div class="progress-bar" id="progress"></div>
+<div class="slide-counter" id="counter">1 / 13</div>
+<div class="nav-hint">← → Arrow Keys</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  function show(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); show(current + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); show(current - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(total - 1);
+  });
+
+  document.addEventListener('click', e => {
+    if (e.clientX > window.innerWidth / 2) show(current + 1);
+    else show(current - 1);
+  });
+</script>
+</body>
+</html>
