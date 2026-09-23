@@ -188,6 +188,14 @@ export interface GraphNode {
 	category: string | null;
 	actor_id: number | null;
 	stylometry_refused: boolean;
+	/**
+	 * Not part of the /graph response — the graph page joins these in from
+	 * /actors by actor_id, so every node can show the same confidence its
+	 * actor already carries on the Actors page. null for a persona that was
+	 * never merged with anything, which is a fact, not a missing value.
+	 */
+	actor_confidence?: number | null;
+	actor_band?: Band | null;
 }
 
 /**

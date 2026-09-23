@@ -1,3 +1,7 @@
+.canvas {
+	position: relative;
+}
+
 .svg {
 	width: 100%;
 	height: auto;
@@ -8,6 +12,55 @@
 		transparent 60%
 	);
 	border-radius: var(--ds-radius-lg, 10px);
+}
+
+.toolbar {
+	position: absolute;
+	top: var(--ds-space-3, 12px);
+	right: var(--ds-space-3, 12px);
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 3px;
+	border-radius: var(--ds-radius-pill, 999px);
+	border: 1px solid var(--ds-border-subtle);
+	background: var(--ds-glass);
+	backdrop-filter: blur(10px);
+	box-shadow: var(--ds-shadow-sm);
+}
+
+.zoomReadout {
+	padding: 0 var(--ds-space-2, 8px);
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 0.68rem;
+	color: var(--ds-text-muted);
+	user-select: none;
+}
+
+.resetView {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--ds-text-secondary);
+	cursor: pointer;
+	transition: color var(--ds-duration-fast, 140ms) var(--ds-ease, ease), background
+		var(--ds-duration-fast, 140ms) var(--ds-ease, ease);
+}
+
+.resetView:hover:not(:disabled) {
+	color: var(--ds-accent);
+	background: var(--ds-accent-bg);
+}
+
+.resetView:disabled {
+	opacity: 0.35;
+	cursor: default;
 }
 
 .edge {
@@ -24,13 +77,61 @@
 }
 
 .node {
-	cursor: pointer;
+	cursor: grab;
+	touch-action: none;
+}
+
+.node:active {
+	cursor: grabbing;
+}
+
+.nodeCircle {
+	transform-box: fill-box;
+	transform-origin: center;
+	transition: transform var(--ds-duration-fast, 140ms) var(--ds-ease-spring, ease), filter
+		var(--ds-duration-fast, 140ms) var(--ds-ease, ease);
+}
+
+.node:hover .nodeCircle,
+.node:focus-visible .nodeCircle {
+	transform: scale(1.18);
+	filter: drop-shadow(0 0 8px currentColor);
+}
+
+.node:active .nodeCircle {
+	transform: scale(1.05);
+}
+
+.node:hover .label,
+.node:focus-visible .label {
+	fill: var(--ds-text-primary, #e6edf8);
+}
+
+.node:focus-visible {
+	outline: none;
+}
+
+.panSurface {
+	cursor: grab;
+	touch-action: none;
+}
+
+.panSurface:active {
+	cursor: grabbing;
 }
 
 .label {
 	font-family: var(--ds-font-mono, monospace);
 	font-size: 10px;
 	fill: var(--ds-text-muted, #9aa3b2);
+	pointer-events: none;
+	user-select: none;
+}
+
+.nodeScore {
+	font-family: var(--ds-font-mono, monospace);
+	font-size: 9px;
+	font-weight: 700;
 	pointer-events: none;
 	user-select: none;
 }

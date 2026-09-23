@@ -165,7 +165,24 @@
 .score {
 	font-family: var(--ds-font-mono);
 	font-size: 1.1rem;
+	font-weight: 600;
 	color: var(--ds-text-primary);
+}
+
+/* Matches BandPill's own colours — the confidence number reads the same as
+   the pill next to it rather than staying neutral while the pill argues a
+   colour underneath it. */
+.score[data-band="CONFIRMED"] {
+	color: var(--ds-success, #4ade80);
+}
+.score[data-band="PROBABLE"] {
+	color: var(--ds-high, #fb923c);
+}
+.score[data-band="POSSIBLE"] {
+	color: var(--ds-medium, #f0b429);
+}
+.score[data-band="WEAK"] {
+	color: var(--ds-low, #38bdf8);
 }
 
 .notScored {

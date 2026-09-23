@@ -16,6 +16,7 @@
 }
 
 .navItem {
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: var(--ds-space-3);
@@ -41,11 +42,30 @@
 	transform: translateX(2px);
 }
 
+.navItem:hover .iconWrap {
+	transform: scale(1.1);
+}
+
 .navItem[data-active="true"] {
-	color: #dbeafe;
+	color: var(--ds-accent-ink);
 	background: linear-gradient(120deg, rgba(125, 211, 252, 0.2), rgba(96, 165, 250, 0.12));
 	border-color: var(--ds-accent-border);
 	box-shadow: var(--ds-shadow-glow-accent);
+}
+
+/* A pill alone reads as "tinted", not "selected" — a hard accent mark on the
+   leading edge is what makes the active item findable at a glance, especially
+   collapsed to icon-only width. */
+.navItem[data-active="true"]::before {
+	content: "";
+	position: absolute;
+	left: -8px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 3px;
+	height: 18px;
+	border-radius: var(--ds-radius-pill);
+	background: var(--ds-accent);
 }
 
 .iconWrap {
@@ -55,6 +75,7 @@
 	width: 24px;
 	height: 24px;
 	flex-shrink: 0;
+	transition: transform var(--ds-duration-fast) var(--ds-ease-spring);
 }
 
 .label {

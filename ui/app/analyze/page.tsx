@@ -47,7 +47,9 @@ function MatchCard({ match }: { match: AnalyseMatch }) {
 					{match.actor_label && <span className={styles.actor}>actor: {match.actor_label}</span>}
 				</div>
 				<div className={styles.matchScore}>
-					<span className={styles.score}>{formatScore(match.score)}</span>
+					<span className={styles.score} data-band={match.band}>
+						{formatScore(match.score)}
+					</span>
 					<BandPill band={match.band} />
 				</div>
 			</header>

@@ -24,3 +24,8 @@ ui/tsconfig.tsbuildinfo
 # CLAUDE.md) and emphatically not something to commit.
 .venv/
 venv/
+
+# Editor swap/lock files
+*.kate-swp
+*.swp
+*.swo

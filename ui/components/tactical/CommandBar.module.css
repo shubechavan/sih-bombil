@@ -23,7 +23,7 @@
 	font-family: var(--ds-font-display);
 	font-size: 0.95rem;
 	font-weight: 700;
-	color: #dbeafe;
+	color: var(--ds-accent-ink);
 	letter-spacing: 0.02em;
 	text-transform: uppercase;
 	white-space: nowrap;
@@ -148,15 +148,41 @@
 	align-items: center;
 	justify-content: center;
 	padding: var(--ds-space-1);
-	border: 0;
+	border: 1px solid transparent;
 	border-radius: var(--ds-radius-sm);
 	background: transparent;
 	color: var(--ds-text-secondary);
 	cursor: pointer;
+	transition: color var(--ds-duration-fast) var(--ds-ease-out), background var(--ds-duration-fast)
+		var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .signOut:hover {
-	color: var(--ds-text-primary);
+	color: var(--ds-critical);
+	background: var(--ds-critical-bg);
+	border-color: var(--ds-critical-border);
+}
+
+.themeToggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--ds-space-1);
+	border: 1px solid var(--ds-border-subtle);
+	border-radius: var(--ds-radius-sm);
+	background: var(--ds-glass);
+	color: var(--ds-text-secondary);
+	cursor: pointer;
+	transition: color var(--ds-duration-fast) var(--ds-ease-out), background var(--ds-duration-fast)
+		var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out), transform
+		var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.themeToggle:hover {
+	color: var(--ds-accent);
+	background: var(--ds-accent-bg);
+	border-color: var(--ds-border-hover);
+	transform: rotate(-12deg);
 }
 
 .signOut:focus-visible {

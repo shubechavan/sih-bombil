@@ -26,9 +26,9 @@
 }
 
 .pill[data-band="CONFIRMED"] {
-	color: var(--ds-critical, #f87171);
-	border-color: var(--ds-critical-border, rgba(248, 113, 113, 0.4));
-	background: var(--ds-critical-bg, rgba(248, 113, 113, 0.1));
+	color: var(--ds-success, #4ade80);
+	border-color: var(--ds-success-border, rgba(74, 222, 128, 0.4));
+	background: var(--ds-success-bg, rgba(74, 222, 128, 0.1));
 }
 
 .pill[data-band="PROBABLE"] {
@@ -44,9 +44,9 @@
 }
 
 .pill[data-band="WEAK"] {
-	color: var(--ds-low, #4ade80);
-	border-color: var(--ds-low-border, rgba(74, 222, 128, 0.35));
-	background: var(--ds-low-bg, rgba(74, 222, 128, 0.08));
+	color: var(--ds-low, #38bdf8);
+	border-color: var(--ds-low-border, rgba(56, 189, 248, 0.35));
+	background: var(--ds-low-bg, rgba(56, 189, 248, 0.08));
 }
 
 /* Never merged — distinct from WEAK on purpose. */

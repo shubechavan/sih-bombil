@@ -10,15 +10,17 @@ import {
 } from "@/components/attribution";
 import { TacticalPanel } from "@/components/tactical";
 import {
+	type ActorSummary,
 	type EntityGraphPayload,
 	type EntityNode,
 	type GraphEdge,
+	type GraphNode,
 	type GraphPayload,
 	api,
 } from "@/lib/attribution";
 import { Share2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./graph.module.css";
 
 type View = "persona" | "entity";
@@ -34,6 +36,7 @@ export default function GraphPage() {
 	const [showTrust, setShowTrust] = useState(true);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [actors, setActors] = useState<ActorSummary[]>([]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -74,6 +77,38 @@ export default function GraphPage() {
 			cancelled = true;
 		};
 	}, [view, sharedOnly]);
+
+	// Every node's probability score is its actor's cluster confidence, not a
+	// number invented for the graph — the same figure the Actors page already
+	// shows, so a persona reads the same wherever it appears. Fetched once,
+	// independent of min_score: the band filter only hides weak edges, it
+	// does not change what any actor was resolved to. Persona-view only —
+	// the entity view has no actors to enrich its nodes with.
+	useEffect(() => {
+		if (view !== "persona") return;
+		let cancelled = false;
+		api<ActorSummary[]>("/actors", { min_personas: 1, limit: 500 })
+			.then((rows) => !cancelled && setActors(rows))
+			.catch(() => {
+				// Best-effort enrichment — the graph is still fully usable without it.
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [view]);
+
+	const nodesWithConfidence: GraphNode[] = useMemo(() => {
+		if (!payload) return [];
+		const byActorId = new Map(actors.map((actor) => [actor.id, actor]));
+		return payload.nodes.map((node) => {
+			const actor = node.actor_id !== null ? byActorId.get(node.actor_id) : undefined;
+			return {
+				...node,
+				actor_confidence: actor?.confidence ?? null,
+				actor_band: actor?.band ?? null,
+			};
+		});
+	}, [payload, actors]);
 
 	const refused = payload?.nodes.filter((n) => n.stylometry_refused) ?? [];
 
@@ -165,7 +200,7 @@ export default function GraphPage() {
 					) : (
 						payload && (
 							<ForceGraph
-								nodes={payload.nodes}
+								nodes={nodesWithConfidence}
 								edges={payload.edges}
 								trustEdges={showTrust ? payload.trust_edges : []}
 								selectedEdge={selected}
@@ -205,7 +240,8 @@ export default function GraphPage() {
 								<i className={styles.swLow} /> WEAK
 							</span>
 							<span className={styles.legendNote}>
-								thickness = score · dashed ring = stylometry refused
+								thickness = score · number in node = actor confidence (– = not merged) · dashed ring
+								= stylometry refused
 							</span>
 							{payload && payload.trust_edges.length > 0 && (
 								<label className={styles.trustToggle}>
