@@ -225,6 +225,76 @@ def test_graph_edges_reference_nodes_that_exist(client):
         assert edge["source"] in ids and edge["target"] in ids
 
 
+def test_the_entity_graph_draws_identifiers_as_nodes(client):
+    payload = client.get("/graph/entity").json()
+    kinds = {n["kind"] for n in payload["nodes"]}
+    assert "persona" in kinds
+    assert kinds & {"pgp", "wallet", "email"}, "no identifier became a node"
+
+
+def test_entity_graph_edges_reference_nodes_that_exist(client):
+    payload = client.get("/graph/entity").json()
+    ids = {n["id"] for n in payload["nodes"]}
+    assert payload["edges"]
+    for edge in payload["edges"]:
+        assert edge["source"] in ids and edge["target"] in ids
+
+
+def test_a_shared_identifier_is_a_hub_in_the_entity_graph(client):
+    """This corpus has known shared keys; the view exists to make them visible."""
+    payload = client.get("/graph/entity").json()
+    hubs = [n for n in payload["nodes"] if n["shared"] and n["kind"] != "persona"]
+    assert hubs, "no hub on a corpus built around shared identifiers"
+    assert payload["hub_count"] == len(hubs)
+    assert all(len(h["personas"]) > 1 for h in hubs)
+
+
+def test_the_entity_graph_carries_no_score(client):
+    """An edge here is an observation. A score would invite summing them."""
+    payload = client.get("/graph/entity").json()
+    for edge in payload["edges"]:
+        assert "score" not in edge and "band" not in edge
+        assert edge["relation"] in ("published", "normalises to")
+
+
+def test_entity_trust_edges_stay_separate_and_marked(client):
+    payload = client.get("/graph/entity").json()
+    for edge in payload.get("trust_edges", []):
+        assert edge["affects_score"] is False
+        assert edge["note"]
+
+
+def test_shared_only_keeps_the_hubs_and_drops_the_leaves(client):
+    everything = client.get("/graph/entity").json()
+    hubs_only = client.get("/graph/entity", params={"shared_only": True}).json()
+    assert len(hubs_only["nodes"]) < len(everything["nodes"])
+    assert hubs_only["hub_count"] == everything["hub_count"]
+    for node in hubs_only["nodes"]:
+        if node["kind"] != "persona":
+            assert node["shared"] is True
+
+
+def test_the_entity_graph_scopes_to_one_actor(client):
+    everything = client.get("/graph/entity").json()
+    actor_ids = {
+        n["detail"].get("actor_id")
+        for n in everything["nodes"] if n["kind"] == "persona"
+    } - {None}
+    if not actor_ids:
+        pytest.skip("clustering has not run")
+    one = client.get("/graph/entity", params={"actor_id": sorted(actor_ids)[0]}).json()
+    assert one["nodes"]
+    assert len(one["nodes"]) < len(everything["nodes"])
+
+
+def test_an_entity_node_never_truncates_the_value_it_abbreviates(client):
+    payload = client.get("/graph/entity").json()
+    for node in payload["nodes"]:
+        if "…" in node["label"]:
+            assert len(node["value"]) > len(node["label"])
+            assert node["value"].endswith(node["label"].split("…")[-1])
+
+
 def test_timeline_buckets_are_ordered_and_non_empty(client):
     buckets = client.get("/timeline", params={"bucket": "month"}).json()
     assert buckets

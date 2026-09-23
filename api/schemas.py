@@ -287,6 +287,44 @@ class GraphPayload(BaseModel):
     note: str
 
 
+class EntityNode(BaseModel):
+    """A persona, or an identifier one published.
+
+    `id` is a string — `persona:3`, `pgp:9A1B…` — because the nodes in this view
+    are not all rows in one table. That is also why this is a separate model
+    from `GraphNode` rather than a widening of it: `GraphNode.id` is an `int`
+    persona id and clients rely on that.
+    """
+
+    id: str
+    kind: str
+    label: str                              #: abbreviated for drawing
+    value: str                              #: the full value, never truncated
+    personas: list[int] = Field(default_factory=list)
+    #: More than one persona touches it. The hubs are the point of the view.
+    shared: bool = False
+    detail: dict = Field(default_factory=dict)
+
+
+class EntityEdge(BaseModel):
+    """`persona → identifier`. An observation, which is why it has no score."""
+
+    source: str
+    target: str
+    relation: str
+
+
+class EntityGraphPayload(BaseModel):
+    nodes: list[EntityNode] = Field(default_factory=list)
+    edges: list[EntityEdge] = Field(default_factory=list)
+    #: Same separation as `GraphPayload`, for the same reason. Endpoints are
+    #: persona ids; a client draws them against `persona:<id>` nodes.
+    trust_edges: list[TrustEdge] = Field(default_factory=list)
+    trust_note: str = ""
+    hub_count: int = 0
+    note: str
+
+
 class TimelineBucket(BaseModel):
     bucket: str
     posts: int = 0

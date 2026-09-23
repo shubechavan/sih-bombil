@@ -27,8 +27,16 @@ from api.queries import (  # noqa: E402
     persona_summaries,
     trust_edges_for,
 )
-from api.schemas import GraphEdge, GraphNode, GraphPayload  # noqa: E402
+from api.schemas import (  # noqa: E402
+    EntityEdge,
+    EntityGraphPayload,
+    EntityNode,
+    GraphEdge,
+    GraphNode,
+    GraphPayload,
+)
 from db import Persona  # noqa: E402
+from link.entity_graph import entity_graph_for  # noqa: E402
 
 router = APIRouter(tags=["graph"])
 
@@ -113,4 +121,73 @@ def get_graph(
         trust_note=TRUST_NOTE if trust else "",
         min_score=min_score,
         note=NOTE,
+    )
+
+
+@router.get("/graph/entity", response_model=EntityGraphPayload)
+def get_entity_graph(
+    session=Depends(get_session),
+    source_id: int | None = Query(None, description="restrict to one source"),
+    actor_id: int | None = Query(None, description="restrict to one actor"),
+    include_trust: bool = Query(True,
+                                description="include buyer-mediated context edges"),
+    shared_only: bool = Query(False,
+                              description="keep only identifiers more than one "
+                                          "persona published, and the personas "
+                                          "reaching them"),
+) -> EntityGraphPayload:
+    """The same corpus as `/graph`, projected around identifiers.
+
+    A separate endpoint rather than a mode on `/graph`, because the two payloads
+    disagree on what a node *is*: `GraphNode.id` is an integer persona id, and
+    an entity node needs a string id and a kind. Widening the existing model to
+    carry both would make every client branch on a field to know which shape it
+    received, and would change a response other pages already depend on.
+    """
+    personas = list(session.execute(select(Persona).order_by(Persona.id)).scalars())
+    if source_id is not None:
+        personas = [p for p in personas if p.source_id == source_id]
+    if actor_id is not None:
+        personas = [p for p in personas if p.actor_id == actor_id]
+
+    persona_ids = [p.id for p in personas]
+    graph = entity_graph_for(session, persona_ids)
+
+    nodes = graph.nodes
+    edges = graph.edges
+    if shared_only:
+        # Drop the leaves, keep the hubs and whatever reaches them. Useful on a
+        # projector: the unshared identifiers are the bulk of the nodes and none
+        # of the argument.
+        hubs = {n.id for n in nodes if n.kind != "persona" and n.shared}
+        edges = tuple(e for e in edges if e.target in hubs)
+        reachable = hubs | {e.source for e in edges}
+        nodes = tuple(n for n in nodes if n.id in reachable)
+
+    kept_personas = [
+        int(n.value) for n in nodes if n.kind == "persona"
+    ]
+    trust = trust_edges_for(session, kept_personas) if include_trust else []
+
+    return EntityGraphPayload(
+        nodes=[
+            EntityNode(
+                id=n.id,
+                kind=n.kind,
+                label=n.label,
+                value=n.value,
+                personas=list(n.personas),
+                shared=n.shared,
+                detail=n.detail,
+            )
+            for n in nodes
+        ],
+        edges=[
+            EntityEdge(source=e.source, target=e.target, relation=e.relation)
+            for e in edges
+        ],
+        trust_edges=trust,
+        trust_note=TRUST_NOTE if trust else "",
+        hub_count=sum(1 for n in nodes if n.kind != "persona" and n.shared),
+        note=graph.note,
     )
